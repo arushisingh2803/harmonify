@@ -1,33 +1,16 @@
-import logo from './logo.svg';
-import './App.css';
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import Homepage from "./components/Homepage.tsx";
+import Dashboard from "./components/Dashboard.tsx";
 
 function App() {
-  const [tasks, setTasks] = useState([]);
-  useEffect(() => {
-    axios.get('http://127.0.0.1:8000/api/tasks/')
-      .then(response => {
-        setTasks(response.data);
-      })
-      .catch(error => {
-        console.error("There was an error fetching the tasks!", error);
-      });
-  }, []);
   return (
-    <div className="App">
-      <h1>Task List</h1>
-      <ul>
-        {tasks.map(task => (
-          <li key={task.id}>
-            <h3>{task.title}</h3>
-            <p>{task.description}</p>
-            <p>Status: {task.completed ? 'Completed' : 'Pending'}</p>
-          </li>
-        ))}
-      </ul>
-    </div>
+    <Router>
+      <Routes>
+        <Route path="/" element={<Homepage />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+      </Routes>
+    </Router>
   );
 }
+
 export default App;

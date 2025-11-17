@@ -16,8 +16,14 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from api import views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/', include('api.urls'))
+    path('api/', include('api.urls')),
+    path("login/", views.spotify_login),
+    path("callback/", views.spotify_callback),
+    path("profile/", views.spotify_profile),
+    path("top-tracks/", views.spotify_top_tracks),
+    path("top-artists/", views.spotify_top_artists),
 ]
