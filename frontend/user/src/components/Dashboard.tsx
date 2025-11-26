@@ -18,8 +18,8 @@ export default function Dashboard() {
       .then(res => setProfile(res.data))
       .catch(console.error);
 
-    axios.get(`http://localhost:8000/top-tracks?token=${token}`)
-      .then(res => setTopTracks(res.data.items || []))
+    axios.get(`http://localhost:8000/top-tracks-with-snippets/?token=${token}`)
+      .then(res => setTopTracks(res.data || []))
       .catch(console.error);
 
     axios.get(`http://localhost:8000/top-artists?token=${token}`)
@@ -54,7 +54,9 @@ export default function Dashboard() {
       {/* Top Tracks */}
       <h2>Your Top Tracks 🎵</h2>
       <ul>
-        {topTracks.map((track) => (
+      {topTracks.map((t) => {
+        const track = t.spotify_track;
+        return (
           <li key={track.id} style={{ marginBottom: "1rem" }}>
             <img
               src={track.album.images?.[2]?.url}
@@ -63,9 +65,11 @@ export default function Dashboard() {
               style={{ borderRadius: 4, marginRight: 8 }}
             />
             <strong>{track.name}</strong>
-            <span> — {track.artists.map((a: any) => a.name).join(", ")}</span>
+            <span> — {track.artists.map((a: { name: any; }) => a.name).join(", ")}</span>
           </li>
-        ))}
+        );
+      })}
+
       </ul>
 
       {/* Top Artists */}

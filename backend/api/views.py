@@ -75,19 +75,39 @@ def spotify_profile(request):
 
     return JsonResponse(response.json())
 
-def spotify_top_tracks(request):
+def spotify_top_tracks_with_snippets(request):
     token = request.GET.get("token")
 
     if not token:
         return JsonResponse({"error": "Token is required"}, status=400)
 
-    response = requests.get(
+    sp_response = requests.get(
         "https://api.spotify.com/v1/me/top/tracks?limit=10&time_range=long_term",
         headers={"Authorization": f"Bearer {token}"}
-)
+    )
 
+    sp_data = sp_response.json()
 
-    return JsonResponse(response.json(), safe=False)
+    if "error" in sp_data:
+        return JsonResponse({"error": "Spotify error", "details": sp_data}, status=400)
+
+    tracks = sp_data.get("items", [])
+
+    tracks_with_snippets = []
+
+    for t in tracks:
+        track_name = t["name"]
+        artist_name = t["artists"][0]["name"]
+
+        preview_url = get_itunes_preview(track_name, artist_name)
+
+        tracks_with_snippets.append({
+            "spotify_track": t,
+            "preview_url": preview_url
+        })
+
+    return JsonResponse(tracks_with_snippets, safe=False)
+
 
 def spotify_top_artists(request):
     token = request.GET.get("token")
@@ -102,3 +122,17 @@ def spotify_top_artists(request):
 
 
     return JsonResponse(response.json(), safe=False)
+
+def get_itunes_preview(track_name, artist_name):
+    query = f"{track_name} {artist_name}".replace(" ", "+")
+    url = f"https://itunes.apple.com/search?term={query}&entity=song&limit=1"
+
+    try:
+        response = requests.get(url).json()
+
+        if response.get("resultCount", 0) > 0:
+            return response["results"][0].get("previewUrl")  # may be None
+
+        return None
+    except:
+        return None
