@@ -5,12 +5,7 @@ from rest_framework import viewsets
 from .models import Task
 from .serializers import TaskSerializer
 from django.conf import settings
-import os
 
-
-# -----------------------------
-# Existing Task API views
-# -----------------------------
 class TaskViewSet(viewsets.ModelViewSet):
     queryset = Task.objects.all()
     serializer_class = TaskSerializer
@@ -29,6 +24,7 @@ def spotify_login(request):
         f"&scope={SCOPES}"
     )
     return HttpResponseRedirect(auth_url)
+
 def spotify_callback(request):
     code = request.GET.get("code")
     print("\nDEBUG: Code received from Spotify:", code)
@@ -53,11 +49,11 @@ def spotify_callback(request):
     )
 
     data = response.json()
-    print("🔎 DEBUG: Spotify token response:", data)
+    print("Spotify token response:", data)
 
     access_token = data.get("access_token")
 
-    # If no token, show spotify error instead of redirecting
+    # show spotify error if no access token found
     if not access_token:
         return JsonResponse({
             "error": "Failed to get access token",
@@ -106,4 +102,3 @@ def spotify_top_artists(request):
 
 
     return JsonResponse(response.json(), safe=False)
-

@@ -16,3 +16,7 @@ npm-debug.log*
 .DS_Store
 .idea/
 .vscode/
+backend/.env
+backend/backend/.env
+.gitignore
+frontend/user/.env
