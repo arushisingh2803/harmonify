@@ -29,6 +29,7 @@ export default function Dashboard() {
     }
   }
 
+  // axios is used for calls to the backend in order to fetch user data and render it to frontend
   useEffect(() => {
     if (!token) return;
 
@@ -72,7 +73,7 @@ export default function Dashboard() {
   if (!profile) return <h2>Loading your Spotify profile...</h2>;
 
 return (
-  <div style={{ margin: "50px", padding: "2rem", fontFamily: "Arial" }}>
+  <div style={{ margin: "50px", padding: "2rem", fontFamily: "Arial" }}> {/* styling is limited to this at the moment */}
     <h1>Welcome, {profile.display_name} 👋</h1>
 
     <div

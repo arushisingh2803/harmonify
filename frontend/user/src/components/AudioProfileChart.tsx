@@ -1,4 +1,3 @@
-import React from "react";
 import { Radar, Bar } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -13,6 +12,7 @@ import {
   LinearScale
 } from "chart.js";
 
+// components from Chart.js
 ChartJS.register(
   RadialLinearScale,
   CategoryScale,
@@ -36,6 +36,7 @@ type AvgFeatures = {
 export default function AudioProfileChart({ avg }: { avg: AvgFeatures }) {
   if (!avg) return null;
 
+  // values are normalised in order to fit the radar chart scale from 0 to 1
   const normalized = {
     tempo: avg.tempo / 200,
     brightness: avg.centroid / 5000,
@@ -84,8 +85,8 @@ export default function AudioProfileChart({ avg }: { avg: AvgFeatures }) {
 
   return (
     <div style={{ marginTop: "2rem" }}>
-      <h2>🎧 Your Audio Profile (Aggregated)</h2>
-
+      <h2>Your Audio Profile</h2>
+      {/* These values currently are not comprehensible for the user but they will be simplified in order to create a persona! */}
       <div style={{ width: "500px", marginBottom: "3rem" }}>
         <h3>Overall Timbre & Brightness Profile</h3>
         <Radar data={radarData} options={radarOptions} />

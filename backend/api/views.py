@@ -1,3 +1,4 @@
+# all the core API views for Harmonify are in this file
 import base64
 import requests
 from django.http import JsonResponse, HttpResponseRedirect
@@ -17,6 +18,8 @@ CLIENT_SECRET = settings.SPOTIFY_CLIENT_SECRET
 REDIRECT_URI = settings.SPOTIFY_REDIRECT_URI
 SCOPES = "user-read-private user-read-email user-top-read"
 
+
+# handles spotify login flow by redirecting to spotify auth URL
 def spotify_login(request):
     auth_url = (
         "https://accounts.spotify.com/authorize"
@@ -27,6 +30,7 @@ def spotify_login(request):
     )
     return HttpResponseRedirect(auth_url)
 
+# handles spotify callback after user authorizes the app
 def spotify_callback(request):
     code = request.GET.get("code")
     print("\nDEBUG: Code received from Spotify:", code)
@@ -66,7 +70,7 @@ def spotify_callback(request):
         f"http://localhost:3000/dashboard?token={access_token}"
     )
 
-
+# fetches users profile from spotify API using the access token
 def spotify_profile(request):
     token = request.GET.get("token")
 
@@ -77,6 +81,7 @@ def spotify_profile(request):
 
     return JsonResponse(response.json())
 
+# retrives users top tracks and enhances them with audio features extracted from itunes preview URLs
 def spotify_top_tracks_with_snippets(request):
     token = request.GET.get("token")
 
@@ -150,7 +155,7 @@ def spotify_top_tracks_with_snippets(request):
         "average_features": average_features
     }, safe=False)
 
-
+# fetches top artists for users from spotify API
 def spotify_top_artists(request):
     token = request.GET.get("token")
 
@@ -165,6 +170,7 @@ def spotify_top_artists(request):
 
     return JsonResponse(response.json(), safe=False)
 
+# gets itunes preview URL for top tracks
 def get_itunes_preview(track_name, artist_name):
     query = f"{track_name} {artist_name}".replace(" ", "+")
     url = f"https://itunes.apple.com/search?term={query}&entity=song&limit=1"
@@ -179,7 +185,7 @@ def get_itunes_preview(track_name, artist_name):
     except:
         return None
         
-
+# extracts audio features from the preview URL using librosa and returns them as JSON
 def extract_features(request):
     url = request.GET.get("url")
 
