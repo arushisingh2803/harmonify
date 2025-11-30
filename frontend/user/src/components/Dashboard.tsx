@@ -11,6 +11,20 @@ export default function Dashboard() {
   const [topTracks, setTopTracks] = useState<any[]>([]);
   const [topArtists, setTopArtists] = useState<any[]>([]);
 
+  async function fetchAudioFeatures(previewUrl: string) {
+    if (!previewUrl) return null;
+
+    try {
+      const res = await axios.get(
+        `http://localhost:8000/extract-features/?url=${encodeURIComponent(previewUrl)}`
+      );
+      return res.data;
+    } catch (err) {
+      console.error("Audio feature error:", err);
+      return null;
+    }
+  }
+
   useEffect(() => {
     if (!token) return;
 
@@ -19,7 +33,21 @@ export default function Dashboard() {
       .catch(console.error);
 
     axios.get(`http://localhost:8000/top-tracks-with-snippets/?token=${token}`)
-      .then(res => setTopTracks(res.data || []))
+      .then(async (res) => {
+        const tracks = res.data || [];
+
+        const enrichedTracks = await Promise.all(
+          tracks.map(async (t: any) => {
+            const features = await fetchAudioFeatures(t.preview_url);
+            return {
+              ...t,
+              audioFeatures: features
+            };
+          })
+        );
+
+        setTopTracks(enrichedTracks);
+      })
       .catch(console.error);
 
     axios.get(`http://localhost:8000/top-artists?token=${token}`)
@@ -54,28 +82,45 @@ export default function Dashboard() {
       {/* Top Tracks */}
       <h2>Your Top Tracks 🎵</h2>
       <ul>
-      {topTracks.map((t) => {
-        const track = t.spotify_track;
-        return (
-          <li key={track.id} style={{ marginBottom: "1rem" }}>
-            <img
-              src={track.album.images?.[2]?.url}
-              alt="Album"
-              width={50}
-              style={{ borderRadius: 4, marginRight: 8 }}
-            />
-            <strong>{track.name}</strong>
-            <span> — {track.artists.map((a: { name: any; }) => a.name).join(", ")}</span>
-          </li>
-        );
-      })}
+        {topTracks.map((t: any) => {
+          const track = t.spotify_track;
 
+          return (
+            <li key={track.id} style={{ marginBottom: "2rem" }}>
+              <img
+                src={track.album.images?.[2]?.url}
+                alt="Album"
+                width={50}
+                style={{ borderRadius: 4, marginRight: 8 }}
+              />
+
+              <strong>{track.name}</strong>
+              <span> — {track.artists.map((a: any) => a.name).join(", ")}</span>
+
+              {/* Audio Preview
+              {t.preview_url && (
+                <audio controls style={{ display: "block", marginTop: 8 }}>
+                  <source src={t.preview_url} type="audio/mpeg" />
+                </audio>
+              )} */}
+
+              {/* Audio Features */}
+              {t.audioFeatures && (
+                <div style={{ marginTop: "10px", paddingLeft: "12px" }}>
+                  <p><strong>Tempo:</strong> {t.audioFeatures.tempo?.toFixed(2)} BPM</p>
+                  <p><strong>Brightness (Centroid):</strong> {t.audioFeatures.centroid?.toFixed(2)}</p>
+                  <p><strong>Noisiness (ZCR):</strong> {t.audioFeatures.zcr?.toFixed(4)}</p>
+                </div>
+              )}
+            </li>
+          );
+        })}
       </ul>
 
       {/* Top Artists */}
       <h2>Your Top Artists 🎤</h2>
       <ul>
-        {topArtists.map((artist) => (
+        {topArtists.map((artist: any) => (
           <li key={artist.id} style={{ marginBottom: "1rem" }}>
             <img
               src={artist.images?.[2]?.url}

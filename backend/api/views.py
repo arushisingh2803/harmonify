@@ -5,6 +5,8 @@ from rest_framework import viewsets
 from .models import Task
 from .serializers import TaskSerializer
 from django.conf import settings
+from .audio_processing import extract_features_from_url
+import urllib.parse
 
 class TaskViewSet(viewsets.ModelViewSet):
     queryset = Task.objects.all()
@@ -20,7 +22,7 @@ def spotify_login(request):
         "https://accounts.spotify.com/authorize"
         f"?client_id={CLIENT_ID}"
         f"&response_type=code"
-        f"&redirect_uri={REDIRECT_URI}"
+        f"&redirect_uri={urllib.parse.quote(REDIRECT_URI, safe='')}"
         f"&scope={SCOPES}"
     )
     return HttpResponseRedirect(auth_url)
@@ -131,8 +133,21 @@ def get_itunes_preview(track_name, artist_name):
         response = requests.get(url).json()
 
         if response.get("resultCount", 0) > 0:
-            return response["results"][0].get("previewUrl")  # may be None
+            return response["results"][0].get("previewUrl")
 
         return None
     except:
         return None
+        
+
+def extract_features(request):
+    url = request.GET.get("url")
+
+    if not url:
+        return JsonResponse({"error": "Missing preview URL"}, status=400)
+
+    try:
+        features = extract_features_from_url(url)
+        return JsonResponse(features)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
