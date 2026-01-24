@@ -12,6 +12,7 @@ export default function Dashboard() {
   const [topTracks, setTopTracks] = useState<any[]>([]);
   const [topArtists, setTopArtists] = useState<any[]>([]);
   const [avgFeatures, setAvgFeatures] = useState<any>(null);
+  const [timeRange, setTimeRange] = useState<"short_term" | "medium_term" | "long_term">("long_term");
 
   async function fetchAudioFeatures(previewUrl: string) {
     if (!previewUrl) return null;
@@ -39,7 +40,7 @@ export default function Dashboard() {
       .catch(console.error);
 
     axios
-      .get(`http://localhost:8000/top-tracks-with-snippets/?token=${token}`)
+      .get(`http://localhost:8000/top-tracks-with-snippets/?token=${token}&time_range=${timeRange}`)
       .then(async (res) => {
         const data = res.data;
 
@@ -64,10 +65,10 @@ export default function Dashboard() {
       .catch(console.error);
 
     axios
-      .get(`http://localhost:8000/top-artists?token=${token}`)
+      .get(`http://localhost:8000/top-artists?token=${token}&time_range=${timeRange}`)
       .then((res) => setTopArtists(res.data.items || []))
       .catch(console.error);
-  }, [token]);
+  }, [token, timeRange]);
 
   if (!token) return <h2>No token found. Please login again.</h2>;
   if (!profile) return <h2>Loading your Spotify profile...</h2>;
@@ -105,7 +106,20 @@ return (
             View Profile
           </a>
         </p>
+      <div style={{ marginBottom: "1rem" }}>
+        <strong>Time Range:</strong>{" "}
+        <button onClick={() => setTimeRange("short_term")}>
+          Last 4 Weeks
+        </button>
 
+        <button onClick={() => setTimeRange("medium_term")}>
+          Last 6 Months
+        </button>
+
+        <button onClick={() => setTimeRange("long_term")}>
+          All Time
+        </button>
+      </div>
         {/* Top Tracks */}
         <h2>Your Top Tracks 🎵</h2>
         <ul>
