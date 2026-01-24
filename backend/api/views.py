@@ -84,12 +84,14 @@ def spotify_profile(request):
 # retrives users top tracks and enhances them with audio features extracted from itunes preview URLs
 def spotify_top_tracks_with_snippets(request):
     token = request.GET.get("token")
+    time_range = request.GET.get("time_range", "long_term") # default will be long-term unless specified otherwise. 
 
     if not token:
         return JsonResponse({"error": "Token is required"}, status=400)
 
     sp_response = requests.get(
-        "https://api.spotify.com/v1/me/top/tracks?limit=10&time_range=long_term",
+        f"https://api.spotify.com/v1/me/top/tracks"
+        f"?limit=10&time_range={time_range}",
         headers={"Authorization": f"Bearer {token}"}
     )
 
@@ -158,14 +160,16 @@ def spotify_top_tracks_with_snippets(request):
 # fetches top artists for users from spotify API
 def spotify_top_artists(request):
     token = request.GET.get("token")
+    time_range = request.GET.get("time_range", "long_term")
 
     if not token:
         return JsonResponse({"error": "Token is required"}, status=400)
 
     response = requests.get(
-        "https://api.spotify.com/v1/me/top/artists?limit=10&time_range=long_term",
+        f"https://api.spotify.com/v1/me/top/artists"
+        f"?limit=10&time_range={time_range}",
         headers={"Authorization": f"Bearer {token}"}
-)
+    )
 
 
     return JsonResponse(response.json(), safe=False)

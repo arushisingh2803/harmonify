@@ -12,6 +12,8 @@ export default function Dashboard() {
   const [topTracks, setTopTracks] = useState<any[]>([]);
   const [topArtists, setTopArtists] = useState<any[]>([]);
   const [avgFeatures, setAvgFeatures] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [timeRange, setTimeRange] = useState<"short_term" | "medium_term" | "long_term">("long_term");
 
   async function fetchAudioFeatures(previewUrl: string) {
     if (!previewUrl) return null;
@@ -32,6 +34,8 @@ export default function Dashboard() {
   // axios is used for calls to the backend in order to fetch user data and render it to frontend
   useEffect(() => {
     if (!token) return;
+    
+    setLoading(true);
 
     axios
       .get(`http://localhost:8000/profile?token=${token}`)
@@ -39,7 +43,7 @@ export default function Dashboard() {
       .catch(console.error);
 
     axios
-      .get(`http://localhost:8000/top-tracks-with-snippets/?token=${token}`)
+      .get(`http://localhost:8000/top-tracks-with-snippets/?token=${token}&time_range=${timeRange}`)
       .then(async (res) => {
         const data = res.data;
 
@@ -61,13 +65,14 @@ export default function Dashboard() {
           setAvgFeatures(data.average_features);
         }
       })
-      .catch(console.error);
+      .catch(console.error)
+      .finally(() => setLoading(false));
 
     axios
-      .get(`http://localhost:8000/top-artists?token=${token}`)
+      .get(`http://localhost:8000/top-artists?token=${token}&time_range=${timeRange}`)
       .then((res) => setTopArtists(res.data.items || []))
       .catch(console.error);
-  }, [token]);
+  }, [token, timeRange]);
 
   if (!token) return <h2>No token found. Please login again.</h2>;
   if (!profile) return <h2>Loading your Spotify profile...</h2>;
@@ -105,53 +110,73 @@ return (
             View Profile
           </a>
         </p>
+      <div style={{ marginBottom: "1rem" }}>
+        <strong>Time Range:</strong>{" "}
+        <button onClick={() => setTimeRange("short_term")}>
+          Last 4 Weeks
+        </button>
 
-        {/* Top Tracks */}
-        <h2>Your Top Tracks 🎵</h2>
-        <ul>
-          {topTracks.map((t: any) => {
-            const track = t.spotify_track;
-            return (
-              <li key={track.id} style={{ marginBottom: "1.5rem" }}>
+        <button onClick={() => setTimeRange("medium_term")}>
+          Last 6 Months
+        </button>
+
+        <button onClick={() => setTimeRange("long_term")}>
+          All Time
+        </button>
+      </div>
+      {loading ? (
+        <p>Loading your music data… </p>
+      ) : (
+        <>
+          {/* Top Tracks */}
+          <h2>Your Top Tracks 🎵</h2>
+          <ul>
+            {topTracks.map((t: any) => {
+              const track = t.spotify_track;
+              return (
+                <li key={track.id} style={{ marginBottom: "1.5rem" }}>
+                  <img
+                    src={track.album.images?.[2]?.url}
+                    alt="Album"
+                    width={50}
+                    style={{
+                      borderRadius: 4,
+                      marginRight: 8,
+                      verticalAlign: "middle",
+                    }}
+                  />
+                  <strong>{track.name}</strong>
+                  <span>
+                    {" "}
+                    — {track.artists.map((a: any) => a.name).join(", ")}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+
+          {/* Top Artists */}
+          <h2>Your Top Artists 🎤</h2>
+          <ul>
+            {topArtists.map((artist: any) => (
+              <li key={artist.id} style={{ marginBottom: "1rem" }}>
                 <img
-                  src={track.album.images?.[2]?.url}
-                  alt="Album"
+                  src={artist.images?.[2]?.url}
                   width={50}
+                  alt="Artist"
                   style={{
                     borderRadius: 4,
                     marginRight: 8,
                     verticalAlign: "middle",
                   }}
                 />
-                <strong>{track.name}</strong>
-                <span>
-                  {" "}
-                  — {track.artists.map((a: any) => a.name).join(", ")}
-                </span>
+                <strong>{artist.name}</strong> — Popularity: {artist.popularity}
               </li>
-            );
-          })}
-        </ul>
+            ))}
+          </ul>
+        </>
+      )}
 
-        {/* Top Artists */}
-        <h2>Your Top Artists 🎤</h2>
-        <ul>
-          {topArtists.map((artist: any) => (
-            <li key={artist.id} style={{ marginBottom: "1rem" }}>
-              <img
-                src={artist.images?.[2]?.url}
-                width={50}
-                alt="Artist"
-                style={{
-                  borderRadius: 4,
-                  marginRight: 8,
-                  verticalAlign: "middle",
-                }}
-              />
-              <strong>{artist.name}</strong> — Popularity: {artist.popularity}
-            </li>
-          ))}
-        </ul>
       </div>
 
       {/* Audio Profile Chart */}
@@ -160,6 +185,7 @@ return (
       </div>
     </div>
   </div>
+  
 );
 
 }
