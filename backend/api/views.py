@@ -16,6 +16,7 @@ class TaskViewSet(viewsets.ModelViewSet):
 CLIENT_ID = settings.SPOTIFY_CLIENT_ID
 CLIENT_SECRET = settings.SPOTIFY_CLIENT_SECRET
 REDIRECT_URI = settings.SPOTIFY_REDIRECT_URI
+TICKETMASTER_API_KEY = settings.TICKETMASTER_API_KEY
 SCOPES = "user-read-private user-read-email user-top-read"
 
 
@@ -157,7 +158,25 @@ def spotify_top_tracks_with_snippets(request):
         "average_features": average_features
     }, safe=False)
 
-# fetches top artists for users from spotify API
+# helper function to fetch user's top artists from spotify API
+def get_user_top_artists(token, limit=20, time_range="long_term"):
+    response = requests.get(
+        "https://api.spotify.com/v1/me/top/artists",
+        params={
+            "limit": limit,
+            "time_range": time_range
+        },
+        headers={"Authorization": f"Bearer {token}"}
+    )
+
+    data = response.json()
+
+    if "items" not in data:
+        return []
+
+    return [artist["name"] for artist in data["items"]]
+
+# endpoint to fetch user's top artists from spotify API and return them as JSON
 def spotify_top_artists(request):
     token = request.GET.get("token")
     time_range = request.GET.get("time_range", "long_term")
@@ -165,14 +184,10 @@ def spotify_top_artists(request):
     if not token:
         return JsonResponse({"error": "Token is required"}, status=400)
 
-    response = requests.get(
-        f"https://api.spotify.com/v1/me/top/artists"
-        f"?limit=10&time_range={time_range}",
-        headers={"Authorization": f"Bearer {token}"}
-    )
+    # using helper function to fetch top artists and return them as JSON response
+    artists = get_user_top_artists(token, limit=10, time_range=time_range)
 
-
-    return JsonResponse(response.json(), safe=False)
+    return JsonResponse({"artists": artists})
 
 # gets itunes preview URL for top tracks
 def get_itunes_preview(track_name, artist_name):
@@ -201,3 +216,41 @@ def extract_features(request):
         return JsonResponse(features)
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
+
+# function to fetch concert recommendations based on user's top artists by querying the Ticketmaster API    
+def concert_recommendations(request):
+    token = request.GET.get("token")
+
+    if not token:
+        return JsonResponse({"error": "Token is required"}, status=400)
+
+    # using helper function
+    top_artists = get_user_top_artists(token, limit=20, time_range="long_term")
+
+    concerts = []
+
+    for artist in top_artists:
+        tm_url = (
+            "https://app.ticketmaster.com/discovery/v2/events.json"
+            f"?keyword={urllib.parse.quote(artist)}"
+            "&classificationName=music"
+            "&countryCode=IE"
+            "&size=3"
+            f"&apikey={TICKETMASTER_API_KEY}"
+        )
+
+        tm_data = requests.get(tm_url).json()
+        events = tm_data.get("_embedded", {}).get("events", [])
+
+        for event in events:
+            venue = event["_embedded"]["venues"][0]
+
+            concerts.append({
+                "artist": artist,
+                "event_name": event["name"],
+                "venue": venue["name"],
+                "city": venue["city"]["name"],
+                "date": event["dates"]["start"]["localDate"]
+            })
+
+    return JsonResponse(concerts, safe=False)
