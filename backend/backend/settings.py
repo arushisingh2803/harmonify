@@ -22,6 +22,7 @@ load_dotenv(os.path.join(BASE_DIR, ".env"))
 SPOTIFY_CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
 SPOTIFY_CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
 SPOTIFY_REDIRECT_URI = os.getenv("SPOTIFY_REDIRECT_URI")
+TICKETMASTER_API_KEY = os.getenv("TICKETMASTER_API_KEY")
 
 
 # Quick-start development settings - unsuitable for production

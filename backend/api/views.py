@@ -158,23 +158,6 @@ def spotify_top_tracks_with_snippets(request):
         "average_features": average_features
     }, safe=False)
 
-# helper function to fetch user's top artists from spotify API
-def get_user_top_artists(token, limit=20, time_range="long_term"):
-    response = requests.get(
-        "https://api.spotify.com/v1/me/top/artists",
-        params={
-            "limit": limit,
-            "time_range": time_range
-        },
-        headers={"Authorization": f"Bearer {token}"}
-    )
-
-    data = response.json()
-
-    if "items" not in data:
-        return []
-
-    return [artist["name"] for artist in data["items"]]
 
 # endpoint to fetch user's top artists from spotify API and return them as JSON
 def spotify_top_artists(request):
@@ -184,10 +167,14 @@ def spotify_top_artists(request):
     if not token:
         return JsonResponse({"error": "Token is required"}, status=400)
 
-    # using helper function to fetch top artists and return them as JSON response
-    artists = get_user_top_artists(token, limit=10, time_range=time_range)
+    response = requests.get(
+        f"https://api.spotify.com/v1/me/top/artists"
+        f"?limit=10&time_range={time_range}",
+        headers={"Authorization": f"Bearer {token}"}
+    )
 
-    return JsonResponse({"artists": artists})
+
+    return JsonResponse(response.json(), safe=False)
 
 # gets itunes preview URL for top tracks
 def get_itunes_preview(track_name, artist_name):
@@ -220,37 +207,63 @@ def extract_features(request):
 # function to fetch concert recommendations based on user's top artists by querying the Ticketmaster API    
 def concert_recommendations(request):
     token = request.GET.get("token")
+    time_range = request.GET.get("time_range", "long_term")
 
     if not token:
         return JsonResponse({"error": "Token is required"}, status=400)
 
-    # using helper function
-    top_artists = get_user_top_artists(token, limit=20, time_range="long_term")
+    # 1. Fetch top artists
+    sp_response = requests.get(
+        "https://api.spotify.com/v1/me/top/artists",
+        headers={
+            "Authorization": f"Bearer {token}"
+        },
+        params={
+            "limit": 20,   # keep this low
+            "time_range": time_range
+        }
+    )
 
+    if sp_response.status_code != 200:
+        return JsonResponse({
+            "error": "Spotify error",
+            "details": sp_response.json()
+        }, status=sp_response.status_code)
+
+    artists = sp_response.json().get("items", [])
     concerts = []
 
-    for artist in top_artists:
-        tm_url = (
-            "https://app.ticketmaster.com/discovery/v2/events.json"
-            f"?keyword={urllib.parse.quote(artist)}"
-            "&classificationName=music"
-            "&countryCode=IE"
-            "&size=3"
-            f"&apikey={TICKETMASTER_API_KEY}"
+    # querying ticketmaster for every top artist
+    for artist in artists:
+        artist_name = artist["name"]
+
+        tm_response = requests.get(
+            "https://app.ticketmaster.com/discovery/v2/events.json",
+            params={
+                "keyword": artist_name,
+                "classificationName": "music",
+                "countryCode": "IE",
+                "size": 3,
+                "apikey": TICKETMASTER_API_KEY
+            }
         )
 
-        tm_data = requests.get(tm_url).json()
+        tm_data = tm_response.json()
         events = tm_data.get("_embedded", {}).get("events", [])
 
         for event in events:
             venue = event["_embedded"]["venues"][0]
 
             concerts.append({
-                "artist": artist,
+                "artist": artist_name,
                 "event_name": event["name"],
                 "venue": venue["name"],
                 "city": venue["city"]["name"],
-                "date": event["dates"]["start"]["localDate"]
+                "date": event["dates"]["start"].get("localDate"),
+                "url": event.get("url")
             })
 
-    return JsonResponse(concerts, safe=False)
+    return JsonResponse({
+        "time_range": time_range,
+        "concerts": concerts
+    })
