@@ -205,7 +205,7 @@ def extract_features(request):
         return JsonResponse({"error": str(e)}, status=500)
 
 # function to fetch concert recommendations based on user's top artists by querying the Ticketmaster API    
-def concert_recommendations(request):
+def concerts_recommendations(request):
     token = request.GET.get("token")
     time_range = request.GET.get("time_range", "long_term")
 

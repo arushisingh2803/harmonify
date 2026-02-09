@@ -30,6 +30,13 @@ export default function Dashboard() {
       return null;
     }
   }
+  
+  // storing token in localStorage. 
+  useEffect(() => {
+    if (token) {
+      localStorage.setItem("spotify_token", token);
+    }
+  }, [token]);
 
   // axios is used for calls to the backend in order to fetch user data and render it to frontend
   useEffect(() => {

@@ -12,5 +12,5 @@ urlpatterns = [
     path('top-tracks-with-snippets/', views.spotify_top_tracks_with_snippets),
     path("top-artists/", views.spotify_top_artists),
     path("extract-features/", views.extract_features),
-    path("concerts-recommendations/", views.concert_recommendations)
+    path("concerts-recommendations/", views.concerts_recommendations)
 ]
