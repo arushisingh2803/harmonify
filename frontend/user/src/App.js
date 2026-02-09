@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Homepage from "./components/Homepage.tsx";
 import Dashboard from "./components/Dashboard.tsx";
+import ConcertRecommendations from "./components/ConcertRecommendations.tsx";
 
 export default function App() {
   return (
@@ -8,6 +9,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Homepage />} />
         <Route path="/dashboard" element={<RequireToken><Dashboard /></RequireToken>} />
+        <Route path="/concerts" element={<RequireToken><ConcertRecommendations /></RequireToken>} />
       </Routes>
     </BrowserRouter>
   );
