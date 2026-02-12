@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import "./style/ConcertRecommendations.css";
+import { useNavigate } from "react-router-dom";
 
 interface Concert {
   artist: string;
@@ -14,6 +15,7 @@ export default function ConcertRecommendations() {
   const [concerts, setConcerts] = useState<Concert[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const token = localStorage.getItem("spotify_token");
@@ -79,15 +81,20 @@ export default function ConcertRecommendations() {
                 </p>
 
                 {concert.url ? (
-                  <a
-                    href={concert.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <button className="chat-btn">View Event</button>
-                  </a>
+                  <><><a
+                            href={concert.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            <button className="chat-btn">View Event</button>
+                        </a><button
+                            className="chat-btn"
+                            onClick={() => navigate(`/concerts/${encodeURIComponent(concert.artist)}`)}
+                        >
+                                Join Chat
+                            </button></></>
                 ) : (
-                  <button className="chat-btn">Join Chat</button>
+                <h1>No event URL available</h1>
                 )}
               </div>
             ))}
