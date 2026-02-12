@@ -51,18 +51,11 @@ export default function ConcertRecommendations() {
       <div className="top-bar" />
 
       <div className="content">
-        {/* Sidebar */}
-        <aside className="sidebar">
-          <div className="icon">🏆</div>
-          <div className="icon">👥</div>
-          <div className="icon">💬</div>
-        </aside>
 
         {/* Main section */}
         <main className="main">
           <div className="header">
             <h1>Concert Recommendations for you</h1>
-            <button className="filter-btn">☰ Filter by Location</button>
           </div>
 
           {loading && <p>Loading concerts… 🎶</p>}
