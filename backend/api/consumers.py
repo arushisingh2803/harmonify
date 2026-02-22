@@ -1,11 +1,16 @@
-import json
 from channels.generic.websocket import AsyncWebsocketConsumer
+import json
 
-class ConcertChatConsumer(AsyncWebsocketConsumer):
+class ConcertConsumer(AsyncWebsocketConsumer):
+
     async def connect(self):
-        self.concert_id = self.scope["url_route"]["kwargs"]["concert_id"]
-        self.room_group_name = f"concert_{self.concert_id}"
+        self.artist_name = self.scope["url_route"]["kwargs"]["artist"]
 
+        safe_artist = re.sub(r'[^a-zA-Z0-9_\-\.]', '_', self.artist_name.lower())
+
+        self.room_group_name = f"concert_{safe_artist}"
+
+        # Join group
         await self.channel_layer.group_add(
             self.room_group_name,
             self.channel_name
@@ -26,13 +31,13 @@ class ConcertChatConsumer(AsyncWebsocketConsumer):
             self.room_group_name,
             {
                 "type": "chat_message",
+                "user": data["user"],
                 "message": data["message"],
-                "user": data.get("user", "Anonymous")
             }
         )
 
     async def chat_message(self, event):
         await self.send(text_data=json.dumps({
+            "user": event["user"],
             "message": event["message"],
-            "user": event["user"]
         }))
