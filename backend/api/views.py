@@ -8,6 +8,7 @@ from .serializers import TaskSerializer
 from django.conf import settings
 from .audio_processing import extract_features_from_url
 import urllib.parse
+from core.models import Concert
 
 class TaskViewSet(viewsets.ModelViewSet):
     queryset = Task.objects.all()
@@ -253,15 +254,25 @@ def concerts_recommendations(request):
 
         for event in events:
             venue = event["_embedded"]["venues"][0]
+            date = event["dates"]["start"].get("localDate")
+
+            concert_obj, created = Concert.objects.get_or_create(
+                spotify_artist_id=artist["id"],
+                artist_name=artist_name,
+                venue=venue["name"],
+                date=date
+            )
 
             concerts.append({
+                "id": concert_obj.id,
                 "artist": artist_name,
                 "event_name": event["name"],
                 "venue": venue["name"],
                 "city": venue["city"]["name"],
-                "date": event["dates"]["start"].get("localDate"),
+                "date": date,
                 "url": event.get("url")
             })
+
 
     return JsonResponse({
         "time_range": time_range,

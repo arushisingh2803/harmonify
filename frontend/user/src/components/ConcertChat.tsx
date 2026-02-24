@@ -1,74 +1,94 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 
-interface Message {
-  user: string;
-  message: string;
-}
-
 export default function ConcertChat() {
   const { concertId } = useParams<{ concertId: string }>();
-
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState("");
   const [socket, setSocket] = useState<WebSocket | null>(null);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [input, setInput] = useState("");
 
-    useEffect(() => {
+  const username = localStorage.getItem("spotify_username") || "Anonymous";
+
+  useEffect(() => {
     if (!concertId) return;
 
+    console.log("Connecting to room:", concertId);
+
     const ws = new WebSocket(
-        `ws://localhost:8000/ws/concerts/${concertId}/`
+      `ws://localhost:8000/ws/concerts/${concertId}/`
     );
 
     ws.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        setMessages((prev) => [...prev, data]);
+      const data = JSON.parse(event.data);
+      setMessages((prev) => [...prev, data]);
     };
 
     ws.onopen = () => {
-        console.log("WebSocket connected");
+      console.log("WebSocket connected");
     };
 
-    ws.onerror = (err) => {
-        console.error("WebSocket error:", err);
+    ws.onerror = (error) => {
+      console.error("WebSocket error:", error);
+    };
+
+    ws.onclose = () => {
+      console.log("WebSocket closed");
     };
 
     setSocket(ws);
 
-    return () => ws.close();
-    }, [concertId]);
+    return () => {
+      ws.close();
+    };
+  }, [concertId]);
 
-  const sendMessage = () => {
-    if (!socket || !input) return;
+  function sendMessage() {
+    if (!socket || input.trim() === "") return;
 
     socket.send(
       JSON.stringify({
-        user: "User",
         message: input,
+        username: username,
       })
     );
 
     setInput("");
-  };
+  }
+
+  if (!concertId) {
+    return <h2>Invalid concert</h2>;
+  }
 
   return (
-    <div>
-      <h3>Concert Chat</h3>
+    <div style={{ padding: "2rem" }}>
+      <h2>Concert Chat</h2>
 
-      <div style={{ height: 200, overflowY: "scroll" }}>
-        {messages.map((m, i) => (
-          <p key={i}>
-            <strong>{m.user}:</strong> {m.message}
-          </p>
+      <div
+        style={{
+          border: "1px solid #ccc",
+          padding: "1rem",
+          height: "300px",
+          overflowY: "auto",
+          marginBottom: "1rem",
+        }}
+      >
+        {messages.map((msg, index) => (
+          <div key={index}>
+            <strong>{msg.username}: </strong>
+            {msg.message}
+          </div>
         ))}
       </div>
 
       <input
         value={input}
         onChange={(e) => setInput(e.target.value)}
-        placeholder="Say hi..."
+        placeholder="Type a message..."
       />
-      <button onClick={sendMessage}>Send</button>
+
+      <button onClick={sendMessage}>
+        Send
+      </button>
     </div>
   );
 }

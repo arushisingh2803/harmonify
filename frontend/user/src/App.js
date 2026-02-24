@@ -11,7 +11,7 @@ export default function App() {
         <Route path="/" element={<Homepage />} />
         <Route path="/dashboard" element={<RequireToken><Dashboard /></RequireToken>} />
         <Route path="/concerts" element={<RequireToken><ConcertRecommendations /></RequireToken>} />
-        <Route path="/concerts/:concertId" element={<RequireToken><ConcertChat /></RequireToken>} />
+        <Route path="/concerts/:concertId" element={<RequireToken><ConcertChat /></RequireToken>}/>
       </Routes>
     </BrowserRouter>
   );
