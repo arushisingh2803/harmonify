@@ -1,29 +1,12 @@
-import { Radar, Bar } from "react-chartjs-2";
+import { Doughnut } from "react-chartjs-2";
 import {
   Chart as ChartJS,
-  RadialLinearScale,
-  BarElement,
-  PointElement,
-  LineElement,
-  Filler,
-  Tooltip,
-  Legend,
-  CategoryScale,
-  LinearScale
-} from "chart.js";
-
-// components from Chart.js
-ChartJS.register(
-  RadialLinearScale,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  PointElement,
-  LineElement,
-  Filler,
+  ArcElement,
   Tooltip,
   Legend
-);
+} from "chart.js";
+
+ChartJS.register(ArcElement, Tooltip, Legend);
 
 type AvgFeatures = {
   tempo: number;
@@ -36,65 +19,54 @@ type AvgFeatures = {
 export default function AudioProfileChart({ avg }: { avg: AvgFeatures }) {
   if (!avg) return null;
 
-  // values are normalised in order to fit the radar chart scale from 0 to 1
   const normalized = {
-    tempo: avg.tempo / 200,
-    brightness: avg.centroid / 5000,
-    noisiness: avg.zcr,
-    energy: avg.rms, 
+    tempo: Math.min(avg.tempo / 200, 1),
+    brightness: Math.min(avg.centroid / 5000, 1),
+    energy: Math.min(avg.rms, 1),
+    mood: Math.min(avg.zcr, 1)
   };
 
-  const radarData = {
-    labels: ["Tempo", "Brightness", "Noisiness", "Energy"],
-    datasets: [
-      {
-        label: "Your Average Audio Profile",
-        data: [
-          normalized.tempo,
-          normalized.brightness,
-          normalized.noisiness,
-          normalized.energy,
-        ],
-        backgroundColor: "rgba(75, 192, 192, 0.4)",
-        borderColor: "rgba(75, 192, 192, 1)",
-        borderWidth: 2,
-      },
-    ],
-  };
-
-  const radarOptions: any = {
-    scales: {
-      r: {
-        suggestedMin: 0,
-        suggestedMax: 1,
-        ticks: { stepSize: 0.2 },
-      },
-    },
-  };
-
-  const mfccData = {
-    labels: avg.mfcc.map((_, i) => `MFCC ${i + 1}`),
-    datasets: [
-      {
-        label: "MFCC Coefficients",
-        data: avg.mfcc,
-        backgroundColor: "rgba(153, 102, 255, 0.6)",
-      },
-    ],
-  };
+  const metrics = [
+    { label: "Tempo (BPM)", value: normalized.tempo * 200, color: "rgba(163,124,217,0.7)" },
+    { label: "Brightness", value: normalized.brightness * 100, color: "rgba(242,146,146,0.7)" },
+    { label: "Energy", value: normalized.energy * 100, color: "rgba(245,188,135,0.7)" },
+    { label: "Mood", value: normalized.mood * 100, color: "rgba(128,205,185,0.7)" }
+  ];
 
   return (
-    <div style={{ marginTop: "2rem" }}>
-      <h2>Your Audio Profile</h2>
-      {/* These values currently are not comprehensible for the user but they will be simplified in order to create a persona! */}
-      <div style={{ width: "500px", marginBottom: "3rem" }}>
-        <h3>Overall Timbre & Brightness Profile</h3>
-        <Radar data={radarData} options={radarOptions} />
-      </div>
-
-      <div style={{ width: "700px" }}>
-        <h3>MFCC Timbre Fingerprint</h3>
-        <Bar data={mfccData} />
+    <div className="chart-wrapper" style={{ display: "flex", flexDirection: "column", gap: "2rem", padding: "1rem" }}>  
+      <div style={{ display: "flex", gap: "2rem", flexWrap: "wrap" }}>
+        {metrics.map((metric, idx) => {
+          const data = {
+            labels: [metric.label, ""],
+            datasets: [
+              {
+                data: [metric.value, 100 - metric.value],
+                backgroundColor: [metric.color, "rgba(0,0,0,0.05)"],
+                borderWidth: 0
+              }
+            ]
+          };
+          const options: any = {
+            cutout: "70%",
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: (context: any) => {
+                    return `${metric.label}: ${metric.value.toFixed(0)}${metric.label === "Tempo (BPM)" ? " BPM" : "%"}`;
+                  }
+                }
+              }
+            }
+          };
+          return (
+            <div key={idx} style={{ width: "120px", textAlign: "center" }}>
+              <Doughnut data={data} options={options} />
+              <p style={{ marginTop: "0.5rem", fontSize: "0.9rem", color: "#2b2b2b", fontWeight: 600 }}>{metric.label}</p>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
