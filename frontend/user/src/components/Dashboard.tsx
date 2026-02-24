@@ -38,6 +38,13 @@ export default function Dashboard() {
     }
   }, [token]);
 
+  //storing spotify username in localStorage for the concert chat feature
+  useEffect(() => {
+    if (profile?.display_name) {
+      localStorage.setItem("spotify_username", profile.display_name);
+    }
+  }, [profile]);
+
   // axios is used for calls to the backend in order to fetch user data and render it to frontend
   useEffect(() => {
     if (!token) return;

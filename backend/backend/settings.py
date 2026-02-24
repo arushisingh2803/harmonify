@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     'rest_framework',
     'api',
+    'channels',
     'corsheaders',
     'core'
 ]
@@ -65,9 +66,15 @@ MIDDLEWARE = [
 ]
 
 CORS_ALLOW_ALL_ORIGINS = True
-
+ASGI_APPLICATION = "backend.asgi.application"
 
 ROOT_URLCONF = "backend.urls"
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",
+    }
+}
 
 TEMPLATES = [
     {
