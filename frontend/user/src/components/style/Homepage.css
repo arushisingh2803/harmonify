@@ -1,0 +1,199 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Lato', sans-serif;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Roboto Slab', serif;
+}
+
+.homepage {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+  background: #fff; 
+}
+
+.aura {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(150px);
+  opacity: 0.7;
+  animation: floatAll 30s ease-in-out infinite;
+  z-index: 1;
+}
+
+.aura.one { 
+  width: 500px; height: 500px; 
+  background: #f09292;
+  top: 10%; left: 5%;
+  animation-delay: 0s;
+}
+.aura.two { 
+  width: 600px; height: 600px; 
+  background: #f5bc87;
+  top: 50%; left: 20%;
+  animation-delay: 2s;
+}
+.aura.three { 
+  width: 400px; height: 400px; 
+  background: #c6eb8f;
+  top: 30%; left: 60%;
+  animation-delay: 4s;
+}
+.aura.four { 
+  width: 550px; height: 550px; 
+  background: #80cdb9;
+  top: 60%; left: 40%;
+  animation-delay: 6s;
+}
+.aura.five { 
+  width: 550px; height: 550px; 
+  background: #a37cd9;
+  top: 60%; left: 40%;
+  animation-delay: 8s;
+}
+.aura.six { 
+  width: 550px; height: 550px; 
+  background: #8d9cfd;
+  top: 60%; left: 40%;
+  animation-delay: 10s;
+}
+
+@keyframes floatAll {
+  0%   { transform: translate(0vw, 0vh) scale(1); }
+  25%  { transform: translate(20vw, -10vh) scale(1.1); }
+  50%  { transform: translate(-15vw, 15vh) scale(0.9); }
+  75%  { transform: translate(10vw, -20vh) scale(1.05); }
+  100% { transform: translate(0vw, 0vh) scale(1); }
+}
+
+.homepage::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  backdrop-filter: blur(14px);
+  background: rgba(255, 255, 255, 0.06);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.hero,
+.feature-item,
+.footer {
+  position: relative;
+  z-index: 2;
+}
+
+.hero {
+  text-align: center;
+  padding: 8rem 2rem 6rem 2rem;
+}
+
+.hero-title {
+  font-size: 3.5rem;
+  font-weight: 800;
+  color: #2b2b2b;
+  margin-bottom: 1rem;
+  letter-spacing: -1px;
+}
+
+.hero-subtitle {
+  font-size: 1.3rem;
+  color: #3d3d3d;
+  margin-bottom: 2.5rem;
+  opacity: 0.85;
+}
+
+.spotify-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+
+  padding: 1rem 2.5rem;
+  border-radius: 999px;
+  border: none;
+
+  background-color: #000;
+  color: #fff;
+
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+
+  cursor: pointer;
+  transition: all 0.3s ease;
+
+  box-shadow:
+    0 10px 30px rgba(0, 0, 0, 0.25);
+}
+
+.spotify-button:hover {
+  transform: scale(1.06);
+  box-shadow:
+    0 15px 40px rgba(0, 0, 0, 0.35);
+}
+
+/* Spotify logo inside button */
+.spotify-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.features {
+  display: flex;
+  flex-direction: column;
+  text-align: center;
+  gap: 6rem;
+  padding: 6rem 8%;
+}
+
+.feature-item {
+  opacity: 0;
+  transform: translateY(50px);
+  transition: all 0.8s ease-out;
+}
+
+.feature-item.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.feature-item h2 {
+  font-size: 3rem;
+  font-weight: 700;
+  color: #2b2b2b;
+  margin-bottom: 0.8rem;
+}
+
+.feature-item p {
+  font-size: 1.2rem;
+  line-height: 1.7;
+  color: #3d3d3d;
+  opacity: 0.85;
+}
+
+@media (max-width: 900px) {
+  .feature-item h2 {
+    font-size: 2.3rem;
+    text-align: center;
+  }
+
+  .feature-item p {
+    text-align: center;
+  }
+}
+
+
+.footer {
+  text-align: center;
+  padding: 3rem 1rem;
+  font-size: 0.9rem;
+  color: #3a3a3a;
+  opacity: 0.7;
+}
