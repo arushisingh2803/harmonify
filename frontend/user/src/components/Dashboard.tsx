@@ -4,6 +4,7 @@ import axios from "axios";
 import AudioProfileChart from "./AudioProfileChart.tsx";
 import { FaHome, FaMusic } from "react-icons/fa";
 import "./style/Dashboard.css";
+import ConcertRecommendations from "./ConcertRecommendations.tsx";
 
 export default function Dashboard() {
   const { search } = useLocation();
@@ -146,7 +147,7 @@ export default function Dashboard() {
 
         {activeTab === "concerts" && (
           <div className="card">
-            <h4>Concert Chat (coming soon)</h4>
+            <ConcertRecommendations />
           </div>
         )}
       </div>

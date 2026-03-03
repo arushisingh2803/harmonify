@@ -1,0 +1,122 @@
+/* Page layout */
+.page {
+  min-height: 100vh;
+  background-color: #f7f8fc;
+  font-family: "Inter", sans-serif;
+}
+
+.top-bar {
+  height: 70px;
+  background: white;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+}
+
+.content {
+  padding: 2rem 3rem;
+}
+
+.main {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Header */
+.header h1 {
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin-bottom: 2rem;
+  color: #2b2b2b;
+}
+
+/* Status text */
+.error {
+  color: #e63946;
+  font-weight: 500;
+}
+
+/* Cards grid */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+/* Individual card */
+.card {
+  background: white;
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.08);
+}
+
+/* Placeholder image */
+.image-placeholder {
+  width: 100%;
+  height: 140px;
+  border-radius: 12px;
+  margin-bottom: 1rem;
+  background: linear-gradient(
+    135deg,
+    #f3a5a5,
+    #fdc693,
+    #c4e790,
+    #72d3bb
+  );
+  background-size: 200% 200%;
+  animation: gradientMove 6s ease infinite;
+}
+
+/* Gradient animation */
+@keyframes gradientMove {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* Text inside card */
+.text {
+  font-size: 0.95rem;
+  color: #444;
+  margin-bottom: 1rem;
+  line-height: 1.5;
+}
+
+.text strong {
+  font-size: 1.05rem;
+  color: #2b2b2b;
+}
+
+/* Buttons */
+.chat-btn {
+  width: 100%;
+  padding: 0.6rem 1rem;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin-bottom: 0.6rem;
+  background-color: #1c1d21;
+  color: white;
+  transition: all 0.2s ease;
+}
+
+.chat-btn:hover {
+  background-color: #6d82b8;
+  box-shadow: 0 6px 18px rgba(75, 128, 255, 0.3);
+}   
