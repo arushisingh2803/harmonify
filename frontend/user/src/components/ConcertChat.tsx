@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
+import "./style/ConcertChat.css";
 
 export default function ConcertChat() {
   const { concertId } = useParams<{ concertId: string }>();
@@ -59,36 +60,42 @@ export default function ConcertChat() {
     return <h2>Invalid concert</h2>;
   }
 
-  return (
-    <div style={{ padding: "2rem" }}>
-      <h2>Concert Chat</h2>
-
-      <div
-        style={{
-          border: "1px solid #ccc",
-          padding: "1rem",
-          height: "300px",
-          overflowY: "auto",
-          marginBottom: "1rem",
-        }}
-      >
-        {messages.map((msg, index) => (
-          <div key={index}>
-            <strong>{msg.username}: </strong>
-            {msg.message}
-          </div>
-        ))}
+return (
+  <div className="chat-page">
+    <div className="chat-container">
+      <div className="chat-header">
+        Concert Chat Room 🎶
       </div>
 
-      <input
-        value={input}
-        onChange={(e) => setInput(e.target.value)}
-        placeholder="Type a message..."
-      />
+      <div className="chat-messages">
+        {messages.map((msg, index) => {
+          const isMe = msg.username === username;
 
-      <button onClick={sendMessage}>
-        Send
-      </button>
+          return (
+            <div
+              key={index}
+              className={`message ${isMe ? "me" : "other"}`}
+            >
+              <strong>{msg.username}</strong>
+              {msg.message}
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="chat-input">
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Type a message..."
+          onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+        />
+
+        <button onClick={sendMessage}>
+          Send
+        </button>
+      </div>
     </div>
-  );
+  </div>
+);
 }
