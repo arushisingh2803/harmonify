@@ -40,11 +40,6 @@ class Message(models.Model):
         ordering = ["timestamp"]
 
 class SpotifyToken(models.Model):
-    """
-    Persists Spotify OAuth tokens per user.
-    Replaces passing the token as a query param on every request,
-    which is insecure and breaks for background tasks.
-    """
     user = models.OneToOneField(
         User,
         on_delete=models.CASCADE,
@@ -60,7 +55,6 @@ class SpotifyToken(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def is_expired(self):
-        """Returns True if the access token needs refreshing."""
         return timezone.now() >= self.expires_at
 
     def __str__(self):
