@@ -1,27 +1,34 @@
 # all the core API views for Harmonify are in this file
 import base64
 import requests
-from django.http import JsonResponse, HttpResponseRedirect
-from rest_framework import viewsets
-from .models import Task
-from .serializers import TaskSerializer
-from django.conf import settings
-from .audio_processing import extract_features_from_url
+import numpy as np
 import urllib.parse
-from core.models import Concert
+
+from django.http import JsonResponse, HttpResponseRedirect
+from django.conf import settings
+from django.utils import timezone
+from datetime import timedelta
+
+from rest_framework import viewsets
+from .models import Task, Concert, SpotifyToken
+from .serializers import TaskSerializer
+from .spotify import get_itunes_preview, fetch_top_tracks, fetch_top_artists, extract_avg_audio_features
+
+from django.contrib.auth.models import User
+from ml.user_profile import build_user_profile
 
 class TaskViewSet(viewsets.ModelViewSet):
     queryset = Task.objects.all()
     serializer_class = TaskSerializer
 
+# importing API keys from settings for use in views
 CLIENT_ID = settings.SPOTIFY_CLIENT_ID
 CLIENT_SECRET = settings.SPOTIFY_CLIENT_SECRET
 REDIRECT_URI = settings.SPOTIFY_REDIRECT_URI
 TICKETMASTER_API_KEY = settings.TICKETMASTER_API_KEY
 SCOPES = "user-read-private user-read-email user-top-read"
 
-
-# handles spotify login flow by redirecting to spotify auth URL
+# spotify auth and data retrieval
 def spotify_login(request):
     auth_url = (
         "https://accounts.spotify.com/authorize"
@@ -32,10 +39,9 @@ def spotify_login(request):
     )
     return HttpResponseRedirect(auth_url)
 
-# handles spotify callback after user authorizes the app
+# callback endpoint for spotify OAuth flow
 def spotify_callback(request):
     code = request.GET.get("code")
-    print("\nDEBUG: Code received from Spotify:", code)
 
     if code is None:
         return JsonResponse({"error": "No code returned", "details": dict(request.GET)}, status=400)
@@ -46,121 +52,90 @@ def spotify_callback(request):
 
     response = requests.post(
         token_url,
-        data={
-            "grant_type": "authorization_code",
-            "code": code,
-            "redirect_uri": REDIRECT_URI,
-        },
-        headers={
-            "Authorization": f"Basic {b64_auth}"
-        }
+        data={"grant_type": "authorization_code", "code": code, "redirect_uri": REDIRECT_URI},
+        headers={"Authorization": f"Basic {b64_auth}"}
     )
 
     data = response.json()
-    print("Spotify token response:", data)
-
     access_token = data.get("access_token")
+    refresh_token = data.get("refresh_token")
 
-    # show spotify error if no access token found
     if not access_token:
-        return JsonResponse({
-            "error": "Failed to get access token",
-            "spotify_response": data
-        }, status=400)
+        return JsonResponse({"error": "Failed to get access token", "spotify_response": data}, status=400)
 
-    return HttpResponseRedirect(
-        f"http://localhost:3000/dashboard?token={access_token}"
+    # spotify profile to get spotify_user_id, display_name, email
+    profile_resp = requests.get(
+        "https://api.spotify.com/v1/me",
+        headers={"Authorization": f"Bearer {access_token}"}
+    ).json()
+
+    spotify_id   = profile_resp["id"]
+    display_name = profile_resp.get("display_name", "")
+    email        = profile_resp.get("email", "")
+
+    # create Django user with spotify_id as username
+    user, _ = User.objects.get_or_create(username=spotify_id)
+
+    # tokens saved serverside for future API calls
+    SpotifyToken.objects.update_or_create(
+        user=user,
+        defaults={
+            "spotify_user_id": spotify_id,
+            "display_name":    display_name,
+            "email":           email,
+            "access_token":    access_token,
+            "refresh_token":   refresh_token,
+            "expires_at":      timezone.now() + timedelta(seconds=3600),
+        }
     )
 
-# fetches users profile from spotify API using the access token
+    # profile built with feature vector
+    try:
+        build_user_profile(user)
+    except Exception as e:
+        print(f"[callback] Profile build failed: {e}")
+
+    # raw token not displayed in frontend for security
+    return HttpResponseRedirect(
+        f"http://localhost:3000/dashboard?user_id={user.id}"
+    )
+
+# API endpoint for frontend fetching
 def spotify_profile(request):
     token = request.GET.get("token")
-
     response = requests.get(
         "https://api.spotify.com/v1/me",
         headers={"Authorization": f"Bearer {token}"}
     )
-
     return JsonResponse(response.json())
 
-# retrives users top tracks and enhances them with audio features extracted from itunes preview URLs
+
 def spotify_top_tracks_with_snippets(request):
     token = request.GET.get("token")
-    time_range = request.GET.get("time_range", "long_term") # default will be long-term unless specified otherwise. 
+    time_range = request.GET.get("time_range", "long_term")
 
     if not token:
         return JsonResponse({"error": "Token is required"}, status=400)
 
-    sp_response = requests.get(
-        f"https://api.spotify.com/v1/me/top/tracks"
-        f"?limit=10&time_range={time_range}",
-        headers={"Authorization": f"Bearer {token}"}
-    )
+    # calls shared helper in spotify.py
+    tracks = fetch_top_tracks(token, time_range)
+    average_features = extract_avg_audio_features(tracks)
 
-    try:
-        sp_data = sp_response.json()
-    except:
-        return JsonResponse({
-            "error": "Spotify did not return valid JSON",
-            "raw": sp_response.text
-        }, status=500)
-
-    if "error" in sp_data:
-        return JsonResponse({"error": "Spotify error", "details": sp_data}, status=400)
-
-    tracks = sp_data.get("items", [])
-
-    tracks_with_features = []
-    collected_features = []
-
+    # preview track URLs fetched
+    tracks_with_previews = []
     for t in tracks:
-        track_name = t["name"]
-        artist_name = t["artists"][0]["name"]
-
-        preview_url = get_itunes_preview(track_name, artist_name)
-
-        features = None
-
-        if preview_url:
-            try:
-                features = extract_features_from_url(preview_url)
-                collected_features.append(features)
-            except Exception as e:
-                print("Audio feature extraction error:", e)
-
-        tracks_with_features.append({
+        preview_url = get_itunes_preview(t["name"], t["artists"][0]["name"])
+        tracks_with_previews.append({
             "spotify_track": t,
             "preview_url": preview_url,
-            "features": features
         })
 
-    if len(collected_features) > 0:
-        tempo_vals = [f["tempo"] for f in collected_features]
-        centroid_vals = [f["centroid"] for f in collected_features]
-        zcr_vals = [f["zcr"] for f in collected_features]
-        rms_vals = [f["rms"] for f in collected_features]
-        mfcc_vals = [f["mfcc"] for f in collected_features]
-
-        import numpy as np
-        mean_mfcc = np.mean(mfcc_vals, axis=0).tolist()
-
-        average_features = {
-            "tempo": float(np.mean(tempo_vals)),
-            "centroid": float(np.mean(centroid_vals)),
-            "zcr": float(np.mean(zcr_vals)),
-            "rms": float(np.mean(rms_vals)),
-            "mfcc": mean_mfcc
-        }
-    else:
-        average_features = {}
-
     return JsonResponse({
-        "tracks": tracks_with_features,
+        "tracks": tracks_with_previews,
         "average_features": average_features
     }, safe=False)
 
-
-# endpoint to fetch user's top artists from spotify API and return them as JSON
+# similar endpoint for top artists
 def spotify_top_artists(request):
     token = request.GET.get("token")
     time_range = request.GET.get("time_range", "long_term")
@@ -168,44 +143,22 @@ def spotify_top_artists(request):
     if not token:
         return JsonResponse({"error": "Token is required"}, status=400)
 
-    response = requests.get(
-        f"https://api.spotify.com/v1/me/top/artists"
-        f"?limit=10&time_range={time_range}",
-        headers={"Authorization": f"Bearer {token}"}
-    )
+    artists = fetch_top_artists(token, time_range)
+    return JsonResponse({"items": artists}, safe=False)
 
-
-    return JsonResponse(response.json(), safe=False)
-
-# gets itunes preview URL for top tracks
-def get_itunes_preview(track_name, artist_name):
-    query = f"{track_name} {artist_name}".replace(" ", "+")
-    url = f"https://itunes.apple.com/search?term={query}&entity=song&limit=1"
-
-    try:
-        response = requests.get(url).json()
-
-        if response.get("resultCount", 0) > 0:
-            return response["results"][0].get("previewUrl")
-
-        return None
-    except:
-        return None
-        
-# extracts audio features from the preview URL using librosa and returns them as JSON
+# shared helper for audio feature extraction from audio_processing.py
 def extract_features(request):
+    from .audio_processing import extract_features_from_url
     url = request.GET.get("url")
-
     if not url:
         return JsonResponse({"error": "Missing preview URL"}, status=400)
-
     try:
         features = extract_features_from_url(url)
         return JsonResponse(features)
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
 
-# function to fetch concert recommendations based on user's top artists by querying the Ticketmaster API    
+# endpoint for concert recommendations based on top artists
 def concerts_recommendations(request):
     token = request.GET.get("token")
     time_range = request.GET.get("time_range", "long_term")
@@ -213,31 +166,11 @@ def concerts_recommendations(request):
     if not token:
         return JsonResponse({"error": "Token is required"}, status=400)
 
-    # 1. Fetch top artists
-    sp_response = requests.get(
-        "https://api.spotify.com/v1/me/top/artists",
-        headers={
-            "Authorization": f"Bearer {token}"
-        },
-        params={
-            "limit": 20,   # keep this low
-            "time_range": time_range
-        }
-    )
-
-    if sp_response.status_code != 200:
-        return JsonResponse({
-            "error": "Spotify error",
-            "details": sp_response.json()
-        }, status=sp_response.status_code)
-
-    artists = sp_response.json().get("items", [])
+    artists = fetch_top_artists(token, time_range, limit=20)
     concerts = []
 
-    # querying ticketmaster for every top artist
     for artist in artists:
         artist_name = artist["name"]
-
         tm_response = requests.get(
             "https://app.ticketmaster.com/discovery/v2/events.json",
             params={
@@ -248,21 +181,18 @@ def concerts_recommendations(request):
                 "apikey": TICKETMASTER_API_KEY
             }
         )
-
-        tm_data = tm_response.json()
-        events = tm_data.get("_embedded", {}).get("events", [])
+        events = tm_response.json().get("_embedded", {}).get("events", [])
 
         for event in events:
             venue = event["_embedded"]["venues"][0]
             date = event["dates"]["start"].get("localDate")
 
-            concert_obj, created = Concert.objects.get_or_create(
+            concert_obj, _ = Concert.objects.get_or_create(
                 spotify_artist_id=artist["id"],
                 artist_name=artist_name,
                 venue=venue["name"],
                 date=date
             )
-
             concerts.append({
                 "id": concert_obj.id,
                 "artist": artist_name,
@@ -273,8 +203,4 @@ def concerts_recommendations(request):
                 "url": event.get("url")
             })
 
-
-    return JsonResponse({
-        "time_range": time_range,
-        "concerts": concerts
-    })
+    return JsonResponse({"time_range": time_range, "concerts": concerts})
