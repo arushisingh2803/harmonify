@@ -137,3 +137,74 @@ def build_user_profile(user):
 
     print(f"[user_profile] Profile saved for {user.username}.")
     return profile
+
+FEAT_TEMPO            = 0
+FEAT_RMS              = 3
+FEAT_GENRE_DIVERSITY  = 86
+FEAT_ARTIST_DIVERSITY = 87
+
+PERSONA_DEFINITIONS = [
+    {"name": "The Seeker",  "tags": ["eclectic", "adventurous", "genre-fluid"],
+     "dominant": {"genre_diversity": "high", "tempo": "high"}},
+    {"name": "The Guardian",   "tags": ["refined", "consistent", "deep-cuts"],
+     "dominant": {"artist_diversity": "low", "genre_diversity": "low"}},
+    {"name": "The Zealous",  "tags": ["high-energy", "bass-heavy", "intense"],
+     "dominant": {"tempo": "high", "rms": "high"}},
+    {"name": "The Wistful", "tags": ["mellow", "sentimental", "slow-burn"],
+     "dominant": {"tempo": "low", "rms": "low"}},
+    {"name": "The Socialite", "tags": ["mainstream", "pop-driven", "trend-aware"],
+     "dominant": {"genre_diversity": "mid", "artist_diversity": "mid"}},
+    {"name": "The Formalist",    "tags": ["genre-loyal", "deep-listener", "niche"],
+     "dominant": {"genre_diversity": "low", "artist_diversity": "high"}},
+]
+
+
+def _rank_centroid(centroid):
+   # converts centroid values into categorical ratings(low, mid, high)
+    def level(value, low, high):
+        if value < low:  return "low"
+        if value > high: return "high"
+        return "mid"
+    return {
+        "tempo":            level(centroid[FEAT_TEMPO], -0.5, 0.5),
+        "rms":              level(centroid[FEAT_RMS], -0.5, 0.5),
+        "genre_diversity":  level(centroid[FEAT_GENRE_DIVERSITY], -0.3, 0.3),
+        "artist_diversity": level(centroid[FEAT_ARTIST_DIVERSITY], -0.3, 0.3),
+    }
+
+
+def _best_persona_for_centroid(centroid_ratings):
+    # matches the centroid ratings to the persona definitions above
+    best_score, best_persona = -1, PERSONA_DEFINITIONS[0]
+    for persona in PERSONA_DEFINITIONS:
+        score = sum(
+            1 for trait, expected in persona["dominant"].items()
+            if centroid_ratings.get(trait) == expected
+        )
+        if score > best_score:
+            best_score, best_persona = score, persona
+    return best_persona["name"], best_persona["tags"]
+
+
+def classify_new_user(user_profile):
+    # loads the pre-trained KMeans model and predicts the cluster for user's feature vector
+    # uses joblib to load the model and scaler and then applies the same preprocessing on the user's feature vector
+    import joblib, os
+    model_dir = os.path.join(os.path.dirname(__file__), 'saved_models')
+    kmeans = joblib.load(os.path.join(model_dir, 'kmeans.pkl'))
+    scaler = joblib.load(os.path.join(model_dir, 'scaler.pkl'))
+
+    vector = np.array(user_profile.feature_vector).reshape(1, -1)
+    vector_scaled = scaler.transform(vector)
+    cluster_id = int(kmeans.predict(vector_scaled)[0])
+
+    centroid = kmeans.cluster_centers_[cluster_id]
+    ratings = _rank_centroid(centroid)
+    persona_name, persona_tags = _best_persona_for_centroid(ratings)
+
+    user_profile.cluster_id   = cluster_id
+    user_profile.persona_type = persona_name
+    user_profile.persona_tags = persona_tags
+    user_profile.save()
+
+    return persona_name, persona_tags
