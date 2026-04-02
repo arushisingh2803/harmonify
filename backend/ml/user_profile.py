@@ -136,6 +136,12 @@ def build_user_profile(user):
     profile.save()
 
     print(f"[user_profile] Profile saved for {user.username}.")
+    try:
+        classify_new_user(profile)
+        print(f"[user_profile] Persona assigned: {profile.persona_type}")
+    except FileNotFoundError:
+        print("[user_profile] No trained model yet ")
+
     return profile
 
 FEAT_TEMPO            = 0
