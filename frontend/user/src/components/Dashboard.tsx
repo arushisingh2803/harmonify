@@ -9,7 +9,9 @@ import ConcertRecommendations from "./ConcertRecommendations.tsx";
 export default function Dashboard() {
   const { search } = useLocation();
   const params = new URLSearchParams(search);
-  const token = params.get("token");
+
+  // user_id is passed as a query parameter from the backend
+  const userId = params.get("user_id");
 
   const [profile, setProfile] = useState<any>(null);
   const [topTracks, setTopTracks] = useState<any[]>([]);
@@ -19,46 +21,42 @@ export default function Dashboard() {
   const [timeRange, setTimeRange] = useState<"short_term" | "medium_term" | "long_term">("long_term");
   const [activeTab, setActiveTab] = useState<"dashboard" | "concerts">("dashboard");
 
-  async function fetchAudioFeatures(previewUrl: string) {
-    if (!previewUrl) return null;
-    try {
-      const res = await axios.get(`http://localhost:8000/extract-features/?url=${encodeURIComponent(previewUrl)}`);
-      return res.data;
-    } catch {
-      return null;
-    }
-  }
-
-  useEffect(() => { if (token) localStorage.setItem("spotify_token", token); }, [token]);
-  useEffect(() => { if (profile?.display_name) localStorage.setItem("spotify_username", profile.display_name); }, [profile]);
+  useEffect(() => {
+    if (userId) localStorage.setItem("harmonify_user_id", userId);
+  }, [userId]);
 
   useEffect(() => {
-    if (!token) return;
+    if (profile?.display_name) {
+      localStorage.setItem("spotify_username", profile.display_name);
+    }
+  }, [profile]);
+
+  useEffect(() => {
+    if (!userId) return;
 
     setLoading(true);
 
-    axios.get(`http://localhost:8000/profile?token=${token}`).then(res => setProfile(res.data)).catch(console.error);
+    // updated endpoints with user_id instead of token - security handled server-side
+    axios.get(`http://localhost:8000/profile/?user_id=${userId}`)
+      .then(res => setProfile(res.data))
+      .catch(console.error);
 
-    axios.get(`http://localhost:8000/top-tracks-with-snippets/?token=${token}&time_range=${timeRange}`)
+    axios.get(`http://localhost:8000/top-tracks-with-snippets/?user_id=${userId}&time_range=${timeRange}`)
       .then(async (res) => {
         const data = res.data;
-        if (data.tracks) {
-          const enriched = await Promise.all(
-            data.tracks.map(async (t: any) => ({ ...t, audioFeatures: await fetchAudioFeatures(t.preview_url) }))
-          );
-          setTopTracks(enriched);
-        }
+        if (data.tracks) setTopTracks(data.tracks);
         if (data.average_features) setAvgFeatures(data.average_features);
       })
       .catch(console.error)
       .finally(() => setLoading(false));
 
-    axios.get(`http://localhost:8000/top-artists?token=${token}&time_range=${timeRange}`)
+    axios.get(`http://localhost:8000/top-artists/?user_id=${userId}&time_range=${timeRange}`)
       .then(res => setTopArtists(res.data.items || []))
       .catch(console.error);
-  }, [token, timeRange]);
 
-  if (!token) return <h2>No token found. Please login again.</h2>;
+  }, [userId, timeRange]);
+
+  if (!userId) return <h2>No session found. Please <a href="http://localhost:8000/login/">login again</a>.</h2>;
   if (!profile) return <h2>Loading your Spotify profile...</h2>;
 
   return (
@@ -90,15 +88,9 @@ export default function Dashboard() {
                   <div className="card">
                     <div className="time-range">
                       <strong>Time Range:</strong>{" "}
-                      <button onClick={() => setTimeRange("short_term")}>
-                        Last 4 Weeks
-                      </button>
-                      <button onClick={() => setTimeRange("medium_term")} >
-                        Last 6 Months
-                      </button>
-                      <button onClick={() => setTimeRange("long_term")}>
-                        All Time
-                      </button>
+                      <button onClick={() => setTimeRange("short_term")}>Last 4 Weeks</button>
+                      <button onClick={() => setTimeRange("medium_term")}>Last 6 Months</button>
+                      <button onClick={() => setTimeRange("long_term")}>All Time</button>
                     </div>
                     <h4>Your Top Tracks 🎵</h4>
                     <ul className="music-list">
@@ -108,7 +100,7 @@ export default function Dashboard() {
                           <li key={track.id}>
                             <img src={track.album.images?.[2]?.url} width={50} />
                             <div>
-                              <strong>{track.name}</strong><br/>
+                              <strong>{track.name}</strong><br />
                               <small>{track.artists.map((a: any) => a.name).join(", ")}</small>
                             </div>
                           </li>
@@ -124,7 +116,7 @@ export default function Dashboard() {
                         <li key={a.id}>
                           <img src={a.images?.[2]?.url} width={50} />
                           <div>
-                            <strong>{a.name}</strong><br/>
+                            <strong>{a.name}</strong><br />
                             <small>Popularity: {a.popularity}</small>
                           </div>
                         </li>

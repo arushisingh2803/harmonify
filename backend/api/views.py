@@ -8,11 +8,11 @@ from django.http import JsonResponse, HttpResponseRedirect
 from django.conf import settings
 from django.utils import timezone
 from datetime import timedelta
+from django.contrib.auth.models import User
 
 from rest_framework import viewsets
 from api.models import Task 
 from core.models import Concert, SpotifyToken
-from core.models import User
 from .serializers import TaskSerializer
 from .spotify import get_itunes_preview, fetch_top_tracks, fetch_top_artists, extract_avg_audio_features
 
@@ -30,6 +30,23 @@ REDIRECT_URI = settings.SPOTIFY_REDIRECT_URI
 TICKETMASTER_API_KEY = settings.TICKETMASTER_API_KEY
 SCOPES = "user-read-private user-read-email user-top-read"
 
+def _get_token_for_user_id(user_id):
+    try:
+        user = User.objects.get(id=user_id)
+        print(f"Found user: {user.username}")
+        spotify_token = SpotifyToken.objects.get(user=user)
+        print(f"Token found, expired: {spotify_token.is_expired()}")
+        if spotify_token.is_expired():
+            from ml.user_profile import _get_access_token
+            return _get_access_token(user)
+        return spotify_token.access_token
+    except User.DoesNotExist:
+        print(f"No user found for id={user_id}")
+        return None
+    except SpotifyToken.DoesNotExist:
+        print(f"No SpotifyToken found for user_id={user_id}")
+        return None
+    
 # spotify auth and data retrieval
 def spotify_login(request):
     auth_url = (
@@ -104,7 +121,12 @@ def spotify_callback(request):
 
 # API endpoint for frontend fetching
 def spotify_profile(request):
-    token = request.GET.get("token")
+    user_id = request.GET.get("user_id")
+    token = _get_token_for_user_id(user_id) if user_id else request.GET.get("token")
+
+    if not token:
+        return JsonResponse({"error": "No valid session"}, status=401)
+
     response = requests.get(
         "https://api.spotify.com/v1/me",
         headers={"Authorization": f"Bearer {token}"}
@@ -113,24 +135,20 @@ def spotify_profile(request):
 
 
 def spotify_top_tracks_with_snippets(request):
-    token = request.GET.get("token")
+    user_id = request.GET.get("user_id")
+    token = _get_token_for_user_id(user_id) if user_id else request.GET.get("token")
     time_range = request.GET.get("time_range", "long_term")
 
     if not token:
-        return JsonResponse({"error": "Token is required"}, status=400)
+        return JsonResponse({"error": "No valid session"}, status=401)
 
-    # calls shared helper in spotify.py
     tracks = fetch_top_tracks(token, time_range)
     average_features = extract_avg_audio_features(tracks)
 
-    # preview track URLs fetched
-    tracks_with_previews = []
-    for t in tracks:
-        preview_url = get_itunes_preview(t["name"], t["artists"][0]["name"])
-        tracks_with_previews.append({
-            "spotify_track": t,
-            "preview_url": preview_url,
-        })
+    tracks_with_previews = [{
+        "spotify_track": t,
+        "preview_url": get_itunes_preview(t["name"], t["artists"][0]["name"]),
+    } for t in tracks]
 
     return JsonResponse({
         "tracks": tracks_with_previews,
@@ -139,14 +157,14 @@ def spotify_top_tracks_with_snippets(request):
 
 # similar endpoint for top artists
 def spotify_top_artists(request):
-    token = request.GET.get("token")
+    user_id = request.GET.get("user_id")
+    token = _get_token_for_user_id(user_id) if user_id else request.GET.get("token")
     time_range = request.GET.get("time_range", "long_term")
 
     if not token:
-        return JsonResponse({"error": "Token is required"}, status=400)
+        return JsonResponse({"error": "No valid session"}, status=401)
 
-    artists = fetch_top_artists(token, time_range)
-    return JsonResponse({"items": artists}, safe=False)
+    return JsonResponse({"items": fetch_top_artists(token, time_range)}, safe=False)
 
 # shared helper for audio feature extraction from audio_processing.py
 def extract_features(request):
