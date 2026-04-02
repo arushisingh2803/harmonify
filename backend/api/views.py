@@ -10,7 +10,9 @@ from django.utils import timezone
 from datetime import timedelta
 
 from rest_framework import viewsets
-from .models import Task, Concert, SpotifyToken
+from api.models import Task 
+from core.models import Concert, SpotifyToken
+from core.models import User
 from .serializers import TaskSerializer
 from .spotify import get_itunes_preview, fetch_top_tracks, fetch_top_artists, extract_avg_audio_features
 
