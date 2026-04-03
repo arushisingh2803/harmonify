@@ -50,7 +50,8 @@ INSTALLED_APPS = [
     'api',
     'channels',
     'corsheaders',
-    'core'
+    'core',
+    'ml',
 ]
 
 MIDDLEWARE = [
