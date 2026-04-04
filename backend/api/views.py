@@ -12,7 +12,7 @@ from django.contrib.auth.models import User
 
 from rest_framework import viewsets
 from api.models import Task 
-from core.models import Concert, SpotifyToken
+from core.models import Concert, SpotifyToken, UserProfile
 from .serializers import TaskSerializer
 from .spotify import get_itunes_preview, fetch_top_tracks, fetch_top_artists, extract_avg_audio_features
 
@@ -224,3 +224,20 @@ def concerts_recommendations(request):
             })
 
     return JsonResponse({"time_range": time_range, "concerts": concerts})
+
+def user_persona(request):
+    user_id = request.GET.get("user_id")
+    if not user_id:
+        return JsonResponse({"error": "user_id required"}, status=400)
+    try:
+        user = User.objects.get(id=user_id)
+        profile = UserProfile.objects.get(user=user)
+        return JsonResponse({
+            "persona_type": profile.persona_type or "",
+            "persona_tags": profile.persona_tags or [],
+            "cluster_id":   profile.cluster_id,
+        })
+    except User.DoesNotExist:
+        return JsonResponse({"error": "User not found"}, status=404)
+    except UserProfile.DoesNotExist:
+        return JsonResponse({"error": "Profile not found"}, status=404)
