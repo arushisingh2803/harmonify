@@ -3,10 +3,15 @@ import requests
 import base64
 from django.utils import timezone
 from django.conf import settings
-from sklearn.preprocessing import StandardScaler
 from core.models import UserProfile, SpotifyToken
-# helper functions for building user profile - avoid repetition
 from api.spotify import fetch_top_tracks, fetch_top_artists, extract_avg_audio_features
+
+# shared weights — must match _make_feature_vector in seed_and_train.py exactly
+AUDIO_WEIGHT     = 5.0
+MFCC_WEIGHT      = 2.0
+GENRE_WEIGHT     = 3.0
+ARTIST_WEIGHT    = 0.3
+DIVERSITY_WEIGHT = 5.0
 
 # token managemet for user access and API calls to Spotify - especially for refreshing tokens
 def _get_access_token(user):
@@ -33,11 +38,11 @@ def _get_access_token(user):
 
     return spotify_token.access_token
 
+
 # computing diversity scores for user's music taste based on their top artists and top genres
 def _compute_diversity(top_artists, top_genres):
     # genre diversity — ratio of unique MAPPED genres to vocabulary size
     # a user with 3 genres gets a lower score than one with 12
-    from ml.user_profile import _normalise_genre
     mapped_genres = [_normalise_genre(g) for g in top_genres]
     unique_mapped  = len(set(mapped_genres) - {"other"})
     # genre is normalised to a 0-1 scale based on how many distinct genres the user has
@@ -154,15 +159,17 @@ def _normalise_genre(genre: str) -> str:
     if g in GENRE_PARENT_MAP:
         return GENRE_PARENT_MAP[g]
     # fallback to "other" if no match found
-    for vocab_genre in GENRE_VOCABULARY[:-1]: 
+    for vocab_genre in GENRE_VOCABULARY[:-1]:
         if vocab_genre in g:
             return vocab_genre
     return "other"
 
- # maps all genres to parent categories first
+
+# maps all genres to parent categories first
 def _encode_genres(user_genres):
     mapped = set(_normalise_genre(g) for g in user_genres)
     return [1.0 if g in mapped else 0.0 for g in GENRE_VOCABULARY]
+
 
 # artists are encoded using weighted hashing to create a fixed-size vector that represents the user's top artists with correct importance.
 def _encode_artists(top_artists, vocab_size=50):
@@ -176,28 +183,36 @@ def _encode_artists(top_artists, vocab_size=50):
         vector = vector / vector.sum()
     return vector.tolist()
 
+
 # final feature vector built by combining audio features, genre and artist encodings - also normalised for ML model input.
 def _build_feature_vector(audio_features, top_genres, top_artists,
                            genre_diversity, artist_diversity):
-    audio_weight = 3.0
-
     audio_vec = [
-        audio_features.get("tempo", 0.0)    * audio_weight,
-        audio_features.get("centroid", 0.0) * audio_weight,
-        audio_features.get("zcr", 0.0)      * audio_weight,
-        audio_features.get("rms", 0.0)      * audio_weight,
+        audio_features.get("tempo", 0.0)    * AUDIO_WEIGHT,
+        audio_features.get("centroid", 0.0) * AUDIO_WEIGHT,
+        audio_features.get("zcr", 0.0)      * AUDIO_WEIGHT,
+        audio_features.get("rms", 0.0)      * AUDIO_WEIGHT,
     ]
 
     mfcc = audio_features.get("mfcc", [0.0] * 13)
     if len(mfcc) < 13:
-        mfcc = mfcc + [0.0] * (13 - len(mfcc))
-    mfcc = [v * audio_weight for v in mfcc]
+        mfcc += [0.0] * (13 - len(mfcc))
+    mfcc = [v * MFCC_WEIGHT for v in mfcc]
 
-    genre_vec     = _encode_genres(top_genres)
-    artist_vec    = _encode_artists(top_artists)
-    diversity_vec = [genre_diversity * 5.0, artist_diversity * 5.0]
+    # GENRE
+    genre_vec = [g * GENRE_WEIGHT for g in _encode_genres(top_genres)]
+
+    # ARTIST
+    artist_vec = [a * ARTIST_WEIGHT for a in _encode_artists(top_artists)]
+
+    # DIVERSITY
+    diversity_vec = [
+        genre_diversity  * DIVERSITY_WEIGHT,
+        artist_diversity * DIVERSITY_WEIGHT,
+    ]
 
     return audio_vec + mfcc + genre_vec + artist_vec + diversity_vec
+
 
 # main function to call all the relevant functions in order to build the user profile.
 def build_user_profile(user):
@@ -248,38 +263,39 @@ def build_user_profile(user):
 
     return profile
 
-FEAT_TEMPO            = 0
-FEAT_RMS              = 3
-FEAT_GENRE_DIVERSITY  = 86
-FEAT_ARTIST_DIVERSITY = 87
 
 PERSONA_DEFINITIONS = [
-    {"name": "The Seeker",  "tags": ["eclectic", "adventurous", "genre-fluid"],
+    {"name": "The Seeker",    "tags": ["eclectic", "adventurous", "genre-fluid"],
      "dominant": {"genre_diversity": "high", "tempo": "high"}},
-    {"name": "The Guardian",   "tags": ["refined", "consistent", "deep-cuts"],
+    {"name": "The Guardian",  "tags": ["refined", "consistent", "deep-cuts"],
      "dominant": {"artist_diversity": "low", "genre_diversity": "low"}},
-    {"name": "The Zealous",  "tags": ["high-energy", "bass-heavy", "intense"],
+    {"name": "The Zealous",   "tags": ["high-energy", "bass-heavy", "intense"],
      "dominant": {"tempo": "high", "rms": "high"}},
-    {"name": "The Wistful", "tags": ["mellow", "sentimental", "slow-burn"],
+    {"name": "The Wistful",   "tags": ["mellow", "sentimental", "slow-burn"],
      "dominant": {"tempo": "low", "rms": "low"}},
     {"name": "The Socialite", "tags": ["mainstream", "pop-driven", "trend-aware"],
      "dominant": {"genre_diversity": "mid", "artist_diversity": "mid"}},
-    {"name": "The Formalist",    "tags": ["genre-loyal", "deep-listener", "niche"],
+    {"name": "The Formalist", "tags": ["genre-loyal", "deep-listener", "niche"],
      "dominant": {"genre_diversity": "low", "artist_diversity": "high"}},
 ]
 
+FEAT_TEMPO       = 0
+FEAT_RMS         = 3
+FEAT_GENRE_DIV   = -2
+FEAT_ARTIST_DIV  = -1
 
-def _rank_centroid(centroid):
-   # converts centroid values into categorical ratings(low, mid, high)
-    def level(value, low, high):
-        if value < low:  return "low"
-        if value > high: return "high"
+
+def _rank_centroid(vec):
+    def level(v, low=-1.0, high=1.0):
+        if v < low:  return "low"
+        if v > high: return "high"
         return "mid"
+
     return {
-        "tempo":            level(centroid[FEAT_TEMPO], -0.5, 0.5),
-        "rms":              level(centroid[FEAT_RMS], -0.5, 0.5),
-        "genre_diversity":  level(centroid[FEAT_GENRE_DIVERSITY], -0.3, 0.3),
-        "artist_diversity": level(centroid[FEAT_ARTIST_DIVERSITY], -0.3, 0.3),
+        "tempo":            level(vec[FEAT_TEMPO]),
+        "rms":              level(vec[FEAT_RMS]),
+        "genre_diversity":  level(vec[FEAT_GENRE_DIV]),
+        "artist_diversity": level(vec[FEAT_ARTIST_DIV]),
     }
 
 
@@ -300,21 +316,23 @@ def classify_new_user(user_profile):
     # loads the pre-trained KMeans model and predicts the cluster for user's feature vector
     # uses joblib to load the model and scaler and then applies the same preprocessing on the user's feature vector
     import joblib, os
+
     model_dir = os.path.join(os.path.dirname(__file__), 'saved_models')
     kmeans = joblib.load(os.path.join(model_dir, 'kmeans.pkl'))
     scaler = joblib.load(os.path.join(model_dir, 'scaler.pkl'))
 
-    vector = np.array(user_profile.feature_vector).reshape(1, -1)
-    vector_scaled = scaler.transform(vector)
-    cluster_id = int(kmeans.predict(vector_scaled)[0])
+    vec        = np.array(user_profile.feature_vector).reshape(1, -1)
+    vec_scaled = scaler.transform(vec)
+    cluster_id = int(kmeans.predict(vec_scaled)[0])
 
+    # use the cluster centroid to determine persona via centroid ranking
     centroid = kmeans.cluster_centers_[cluster_id]
-    ratings = _rank_centroid(centroid)
-    persona_name, persona_tags = _best_persona_for_centroid(ratings)
+    ratings  = _rank_centroid(centroid)
+    name, tags = _best_persona_for_centroid(ratings)
 
     user_profile.cluster_id   = cluster_id
-    user_profile.persona_type = persona_name
-    user_profile.persona_tags = persona_tags
+    user_profile.persona_type = name
+    user_profile.persona_tags = tags
     user_profile.save()
 
-    return persona_name, persona_tags
+    return name, tags

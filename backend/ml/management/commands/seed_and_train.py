@@ -10,6 +10,12 @@ from sklearn.preprocessing import StandardScaler
 from core.models import UserProfile
 from ml.user_profile import (
     GENRE_VOCABULARY,
+    PERSONA_DEFINITIONS,
+    AUDIO_WEIGHT,
+    MFCC_WEIGHT,
+    GENRE_WEIGHT,
+    ARTIST_WEIGHT,
+    DIVERSITY_WEIGHT,
     _rank_centroid,
     _best_persona_for_centroid,
 )
@@ -50,39 +56,59 @@ ARCHETYPES = [
      "diversity": (0.06, 0.85)},
 ]
 
+# maps archetype name to persona definition for majority-vote labelling
+ARCHETYPE_TO_PERSONA = {
+    "seeker":    "The Seeker",
+    "guardian":  "The Guardian",
+    "zealous":   "The Zealous",
+    "wistful":   "The Wistful",
+    "socialite": "The Socialite",
+    "formalist": "The Formalist",
+}
 
-def _make_feature_vector(archetype, noise=0.05):
+
+def _make_feature_vector(archetype, noise=0.08):
     a = archetype["audio"]
-    audio_weight = 3.0
 
     def jitter(val):
         return val * (1 + random.gauss(0, noise))
 
+    # audio features weighted to match _build_feature_vector in user_profile.py
     audio_vec = [
-        jitter(a["tempo"])    * audio_weight,
-        jitter(a["centroid"]) * audio_weight,
-        jitter(a["zcr"])      * audio_weight,
-        jitter(a["rms"])      * audio_weight,
+        jitter(a["tempo"])    * AUDIO_WEIGHT,
+        jitter(a["centroid"]) * AUDIO_WEIGHT,
+        jitter(a["zcr"])      * AUDIO_WEIGHT,
+        jitter(a["rms"])      * AUDIO_WEIGHT,
     ]
 
-    mfcc_vec = [
-        jitter(random.gauss(0, 1) * (i + 1) * 0.5) * audio_weight
-        for i in range(13)
-    ]
+    # realistic MFCC values based on typical librosa output ranges
+    base_mfcc = [random.uniform(-150, 150) if i == 0
+                 else random.uniform(-30, 30)
+                 for i in range(13)]
+    mfcc_vec = [jitter(v) * MFCC_WEIGHT for v in base_mfcc]
 
+    # genre one-hot weighted to match _build_feature_vector
     genre_set = set(archetype["genres"])
-    genre_vec = [1.0 if g in genre_set else 0.0 for g in GENRE_VOCABULARY]
+    genre_vec = [
+        (1.0 if g in genre_set else 0.0) * GENRE_WEIGHT
+        for g in GENRE_VOCABULARY
+    ]
 
+    # deterministic artist vector per archetype so same archetype = similar artists
     artist_vec = np.zeros(50)
-    for _ in range(random.randint(5, 15)):
-        artist_vec[random.randint(0, 49)] += random.uniform(0.05, 0.3)
+    base_ids = [hash(archetype["name"] + str(i)) for i in range(10)]
+    for i, aid in enumerate(base_ids):
+        bucket = aid % 50
+        artist_vec[bucket] += (10 - i) / 10
     if artist_vec.sum() > 0:
         artist_vec = artist_vec / artist_vec.sum()
+    artist_vec = (artist_vec * ARTIST_WEIGHT).tolist()
 
+    # diversity weighted to match _build_feature_vector
     gd, ad = archetype["diversity"]
-    diversity_vec = [jitter(gd) * 5.0, jitter(ad) * 5.0]
+    diversity_vec = [jitter(gd) * DIVERSITY_WEIGHT, jitter(ad) * DIVERSITY_WEIGHT]
 
-    return audio_vec + mfcc_vec + genre_vec + artist_vec.tolist() + diversity_vec
+    return audio_vec + mfcc_vec + genre_vec + artist_vec + diversity_vec
 
 
 class Command(BaseCommand):
@@ -108,6 +134,11 @@ class Command(BaseCommand):
                         continue
                     user = User.objects.create_user(username=username, password="synthetic")
                     gd, ad = archetype["diversity"]
+                    persona_name = ARCHETYPE_TO_PERSONA[archetype["name"]]
+                    definition   = next(
+                        p for p in PERSONA_DEFINITIONS
+                        if p["name"] == persona_name
+                    )
                     UserProfile.objects.create(
                         user=user,
                         top_genres=archetype["genres"],
@@ -121,6 +152,8 @@ class Command(BaseCommand):
                         genre_diversity_score=gd,
                         artist_diversity_score=ad,
                         feature_vector=_make_feature_vector(archetype),
+                        persona_type=persona_name,
+                        persona_tags=definition["tags"],
                         last_synced=timezone.now(),
                     )
             self.stdout.write(self.style.SUCCESS(
@@ -145,13 +178,31 @@ class Command(BaseCommand):
         kmeans = KMeans(n_clusters=k, random_state=42, n_init=10)
         kmeans.fit(vectors_scaled)
 
-        # rank features of each centroid against overall dataset to determine defining characteristics of each cluster and assign persona labels accordingly
+        # rank features of each centroid against overall dataset to determine defining characteristics of each cluster
+        # majority vote — each cluster is labelled by the most common pre-assigned persona among its members
+        from collections import Counter
         cluster_to_persona = {}
         for cid in range(k):
-            ratings = _rank_centroid(kmeans.cluster_centers_[cid])
-            name, tags = _best_persona_for_centroid(ratings)
-            cluster_to_persona[cid] = (name, tags)
-            self.stdout.write(f"  Cluster {cid} -> {name} {tags}")
+            cluster_profiles = [
+                p for p, label in zip(profiles, kmeans.labels_)
+                if label == cid and p.persona_type
+            ]
+            if cluster_profiles:
+                vote       = Counter(p.persona_type for p in cluster_profiles)
+                best_name  = vote.most_common(1)[0][0]
+                definition = next(
+                    p for p in PERSONA_DEFINITIONS if p["name"] == best_name
+                )
+                cluster_to_persona[cid] = (best_name, definition["tags"])
+                self.stdout.write(
+                    f"  Cluster {cid} -> {best_name} (votes: {dict(vote)})"
+                )
+            else:
+                # fallback to centroid ranking if cluster has no labelled profiles
+                ratings = _rank_centroid(kmeans.cluster_centers_[cid])
+                name, tags = _best_persona_for_centroid(ratings)
+                cluster_to_persona[cid] = (name, tags)
+                self.stdout.write(f"  Cluster {cid} -> {name} (centroid fallback)")
 
         # assign labels back to each user profile and save to database
         for profile, label in zip(profiles, kmeans.labels_):
