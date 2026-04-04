@@ -5,6 +5,7 @@ import numpy as np
 import urllib.parse
 
 from django.http import JsonResponse, HttpResponseRedirect
+from django.shortcuts import redirect
 from django.conf import settings
 from django.utils import timezone
 from datetime import timedelta
@@ -12,7 +13,7 @@ from django.contrib.auth.models import User
 
 from rest_framework import viewsets
 from api.models import Task 
-from core.models import Concert, SpotifyToken
+from core.models import Concert, SpotifyToken, UserProfile
 from .serializers import TaskSerializer
 from .spotify import get_itunes_preview, fetch_top_tracks, fetch_top_artists, extract_avg_audio_features
 
@@ -60,6 +61,8 @@ def spotify_login(request):
 
 # callback endpoint for spotify OAuth flow
 def spotify_callback(request):
+    print("CALLBACK HIT")
+    print(f"Query params: {dict(request.GET)}")
     code = request.GET.get("code")
 
     if code is None:
@@ -115,9 +118,7 @@ def spotify_callback(request):
         print(f"[callback] Profile build failed: {e}")
 
     # raw token not displayed in frontend for security
-    return HttpResponseRedirect(
-        f"http://localhost:3000/dashboard?user_id={user.id}"
-    )
+    return redirect(f"http://localhost:3000/dashboard?user_id={user.id}")
 
 # API endpoint for frontend fetching
 def spotify_profile(request):
@@ -180,11 +181,12 @@ def extract_features(request):
 
 # endpoint for concert recommendations based on top artists
 def concerts_recommendations(request):
-    token = request.GET.get("token")
+    user_id = request.GET.get("user_id")
+    token = _get_token_for_user_id(user_id) if user_id else request.GET.get("token")
     time_range = request.GET.get("time_range", "long_term")
 
     if not token:
-        return JsonResponse({"error": "Token is required"}, status=400)
+        return JsonResponse({"error": "No valid session"}, status=401)
 
     artists = fetch_top_artists(token, time_range, limit=20)
     concerts = []
@@ -224,3 +226,20 @@ def concerts_recommendations(request):
             })
 
     return JsonResponse({"time_range": time_range, "concerts": concerts})
+
+def user_persona(request):
+    user_id = request.GET.get("user_id")
+    if not user_id:
+        return JsonResponse({"error": "user_id required"}, status=400)
+    try:
+        user = User.objects.get(id=user_id)
+        profile = UserProfile.objects.get(user=user)
+        return JsonResponse({
+            "persona_type": profile.persona_type or "",
+            "persona_tags": profile.persona_tags or [],
+            "cluster_id":   profile.cluster_id,
+        })
+    except User.DoesNotExist:
+        return JsonResponse({"error": "User not found"}, status=404)
+    except UserProfile.DoesNotExist:
+        return JsonResponse({"error": "Profile not found"}, status=404)

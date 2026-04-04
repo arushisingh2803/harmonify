@@ -37,16 +37,12 @@ def extract_avg_audio_features(tracks):
     collected = []
 
     for t in tracks:
-        track_name = t["name"]
-        artist_name = t["artists"][0]["name"]
-        preview_url = get_itunes_preview(track_name, artist_name)
-
+        preview_url = get_itunes_preview(t["name"], t["artists"][0]["name"])
         if preview_url:
             try:
-                features = extract_features_from_url(preview_url)
-                collected.append(features)
+                collected.append(extract_features_from_url(preview_url))
             except Exception as e:
-                print(f"Audio extraction failed for {track_name}: {e}")
+                print(f"Audio extraction failed for {t['name']}: {e}")
 
     if not collected:
         return {}
@@ -56,5 +52,7 @@ def extract_avg_audio_features(tracks):
         "centroid": float(np.mean([f["centroid"] for f in collected])),
         "zcr":      float(np.mean([f["zcr"]      for f in collected])),
         "rms":      float(np.mean([f["rms"]      for f in collected])),
+        "energy":   float(np.mean([f["energy"]   for f in collected])),
+        "mood":     float(np.mean([f["mood"]     for f in collected])),
         "mfcc":     np.mean([f["mfcc"] for f in collected], axis=0).tolist(),
     }

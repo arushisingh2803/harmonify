@@ -73,6 +73,7 @@ body {
 .main-layout {
   display: flex;
   gap: 2rem;
+  align-items: flex-start;
 }
 
 .left-column {

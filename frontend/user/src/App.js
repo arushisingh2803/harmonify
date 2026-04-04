@@ -18,9 +18,10 @@ export default function App() {
 }
 
 function RequireToken({ children }) {
-  const token = localStorage.getItem("spotify_token");
+  const params = new URLSearchParams(window.location.search);
+  const userId = params.get("user_id") || localStorage.getItem("harmonify_user_id");
 
-  if (!token) {
+  if (!userId) {
     return <Navigate to="/" replace />;
   }
 

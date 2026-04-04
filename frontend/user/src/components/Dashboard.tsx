@@ -131,7 +131,7 @@ export default function Dashboard() {
             {avgFeatures && (
               <div className="right-column card chart-card">
                 <h4>Your Audio Profile</h4>
-                <AudioProfileChart avg={avgFeatures} />
+                <AudioProfileChart avg={avgFeatures} userId={userId ?? undefined} />
               </div>
             )}
           </div>
