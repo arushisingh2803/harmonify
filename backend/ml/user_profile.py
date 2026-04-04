@@ -1,4 +1,3 @@
-# ml/user_profile.py
 import numpy as np
 import requests
 import base64
@@ -36,17 +35,27 @@ def _get_access_token(user):
 
 # computing diversity scores for user's music taste based on their top artists and top genres
 def _compute_diversity(top_artists, top_genres):
-    total_genres = len(top_genres)
-    unique_genres = len(set(top_genres))
-    genre_diversity = unique_genres / total_genres if total_genres > 0 else 0.0
+    # genre diversity — ratio of unique MAPPED genres to vocabulary size
+    # a user with 3 genres gets a lower score than one with 12
+    from ml.user_profile import _normalise_genre
+    mapped_genres = [_normalise_genre(g) for g in top_genres]
+    unique_mapped  = len(set(mapped_genres) - {"other"})
+    # genre is normalised to a 0-1 scale based on how many distinct genres the user has
+    genre_diversity = unique_mapped / 18.0
 
-    unique_artists = len(set(a["id"] for a in top_artists))
-    artist_diversity = unique_artists / max(len(top_artists), 1)
+    # artist diversity — use genre spread across artists instead
+    # count how many distinct genre buckets the artists cover
+    artist_genres = set()
+    for artist in top_artists:
+        for g in artist.get("genres", []):
+            artist_genres.add(_normalise_genre(g))
+    artist_genres.discard("other")
+    # artist diversity is normalised to a 0-1 scale
+    artist_diversity = min(len(artist_genres) / 10.0, 1.0)
 
     return genre_diversity, artist_diversity
 
 
-# converts categorical data(genres, artists) into numerical vectors for ML model
 GENRE_VOCABULARY = [
     "pop", "rock", "hip-hop", "electronic", "indie",
     "r&b", "jazz", "classical", "metal", "country",
@@ -54,11 +63,106 @@ GENRE_VOCABULARY = [
     "dance", "reggae", "blues", "other"
 ]
 
+# spotify sub-genres are mapped to a parent genre to reduce dimensionality and create a more generalizable model
+GENRE_PARENT_MAP = {
+    # Pop variants
+    "art pop": "pop", "bedroom pop": "pop", "hyperpop": "pop",
+    "indie pop": "pop", "dream pop": "pop", "synth-pop": "pop",
+    "electropop": "pop", "k-pop": "pop", "j-pop": "pop",
+    "power pop": "pop", "bubblegum pop": "pop", "city pop": "pop",
 
-# genres are encoded as binary presence vectors based on a fixed vocabulary of popular genres
+    # Hip-hop variants
+    "rap": "hip-hop", "trap": "hip-hop", "drill": "hip-hop",
+    "conscious hip hop": "hip-hop", "southern hip hop": "hip-hop",
+    "east coast hip hop": "hip-hop", "west coast hip hop": "hip-hop",
+    "lo-fi hip hop": "hip-hop", "alternative hip hop": "hip-hop",
+    "hip hop": "hip-hop",
+
+    # Rock variants
+    "garage rock": "rock", "indie rock": "rock", "alt-rock": "rock",
+    "classic rock": "rock", "hard rock": "rock", "psych rock": "rock",
+    "neo-psychedelic": "rock", "shoegaze": "rock", "post-rock": "rock",
+    "grunge": "rock", "emo": "rock", "math rock": "rock",
+
+    # Electronic variants
+    "edm": "electronic", "techno": "electronic", "house": "electronic",
+    "ambient": "electronic", "dubstep": "electronic", "drum and bass": "electronic",
+    "trance": "electronic", "chillwave": "electronic", "lo-fi": "electronic",
+    "synthwave": "electronic", "vaporwave": "electronic", "idm": "electronic",
+
+    # Indie variants
+    "indie folk": "indie", "indie r&b": "indie", "indie soul": "indie",
+    "chamber pop": "indie", "lo-fi indie": "indie",
+
+    # R&B variants
+    "soul": "r&b", "neo soul": "r&b", "contemporary r&b": "r&b",
+    "quiet storm": "r&b", "new jack swing": "r&b", "indie r&b": "r&b",
+
+    # Jazz variants
+    "jazz fusion": "jazz", "nu jazz": "jazz", "bebop": "jazz",
+    "smooth jazz": "jazz", "acid jazz": "jazz", "jazz rap": "jazz",
+
+    # Metal variants
+    "heavy metal": "metal", "death metal": "metal", "black metal": "metal",
+    "thrash metal": "metal", "doom metal": "metal", "metalcore": "metal",
+    "post-metal": "metal", "nu metal": "metal",
+
+    # Folk variants
+    "indie folk": "folk", "folk rock": "folk", "anti-folk": "folk",
+    "freak folk": "folk", "contemporary folk": "folk", "singer-songwriter": "folk",
+
+    # Latin variants
+    "reggaeton": "latin", "latin pop": "latin", "salsa": "latin",
+    "bossa nova": "latin", "latin rock": "latin", "cumbia": "latin",
+    "flamenco": "latin", "latin jazz": "latin",
+
+    # Country variants
+    "country pop": "country", "alt-country": "country", "bluegrass": "country",
+    "americana": "country", "outlaw country": "country",
+
+    # Soul variants
+    "neo soul": "soul", "classic soul": "soul", "southern soul": "soul",
+    "funk": "soul", "motown": "soul",
+
+    # Bollywood / desi
+    "bollywood": "other", "desi": "other", "hindi pop": "other",
+    "filmi": "other", "punjabi pop": "other",
+
+    # Punk variants
+    "post-punk": "punk", "pop punk": "punk", "hardcore punk": "punk",
+    "skate punk": "punk", "folk punk": "punk",
+
+    # Dance variants
+    "disco": "dance", "funk": "dance", "dancehall": "dance",
+    "afrobeats": "dance", "uk garage": "dance",
+
+    # Blues variants
+    "delta blues": "blues", "chicago blues": "blues", "electric blues": "blues",
+
+    # Classical variants
+    "orchestral": "classical", "opera": "classical", "baroque": "classical",
+    "contemporary classical": "classical", "chamber music": "classical",
+}
+
+# maps a Spotify sub-genre to its broad parent category
+def _normalise_genre(genre: str) -> str:
+    g = genre.lower().strip()
+    # direct match in vocabulary
+    if g in GENRE_VOCABULARY:
+        return g
+    # check parent mapping for known sub-genres
+    if g in GENRE_PARENT_MAP:
+        return GENRE_PARENT_MAP[g]
+    # fallback to "other" if no match found
+    for vocab_genre in GENRE_VOCABULARY[:-1]: 
+        if vocab_genre in g:
+            return vocab_genre
+    return "other"
+
+ # maps all genres to parent categories first
 def _encode_genres(user_genres):
-    genre_set = set(g.lower() for g in user_genres)
-    return [1.0 if g in genre_set else 0.0 for g in GENRE_VOCABULARY]
+    mapped = set(_normalise_genre(g) for g in user_genres)
+    return [1.0 if g in mapped else 0.0 for g in GENRE_VOCABULARY]
 
 # artists are encoded using weighted hashing to create a fixed-size vector that represents the user's top artists with correct importance.
 def _encode_artists(top_artists, vocab_size=50):
@@ -75,19 +179,23 @@ def _encode_artists(top_artists, vocab_size=50):
 # final feature vector built by combining audio features, genre and artist encodings - also normalised for ML model input.
 def _build_feature_vector(audio_features, top_genres, top_artists,
                            genre_diversity, artist_diversity):
+    audio_weight = 3.0
+
     audio_vec = [
-        audio_features.get("tempo", 0.0),
-        audio_features.get("centroid", 0.0),
-        audio_features.get("zcr", 0.0),
-        audio_features.get("rms", 0.0),
+        audio_features.get("tempo", 0.0)    * audio_weight,
+        audio_features.get("centroid", 0.0) * audio_weight,
+        audio_features.get("zcr", 0.0)      * audio_weight,
+        audio_features.get("rms", 0.0)      * audio_weight,
     ]
+
     mfcc = audio_features.get("mfcc", [0.0] * 13)
     if len(mfcc) < 13:
         mfcc = mfcc + [0.0] * (13 - len(mfcc))
+    mfcc = [v * audio_weight for v in mfcc]
 
-    genre_vec    = _encode_genres(top_genres)
-    artist_vec   = _encode_artists(top_artists)
-    diversity_vec = [genre_diversity, artist_diversity]
+    genre_vec     = _encode_genres(top_genres)
+    artist_vec    = _encode_artists(top_artists)
+    diversity_vec = [genre_diversity * 5.0, artist_diversity * 5.0]
 
     return audio_vec + mfcc + genre_vec + artist_vec + diversity_vec
 
@@ -113,11 +221,7 @@ def build_user_profile(user):
         audio_features, top_genres, top_artists,
         genre_diversity, artist_diversity
     )
-
-    scaler = StandardScaler()
-    normalised_vector = scaler.fit_transform(
-        np.array(raw_vector).reshape(1, -1)
-    ).flatten().tolist()
+    raw_vector_list = [float(v) for v in raw_vector]
 
     profile, _ = UserProfile.objects.get_or_create(user=user)
     profile.top_artist_ids         = top_artist_ids
@@ -131,7 +235,7 @@ def build_user_profile(user):
     profile.avg_mfcc               = audio_features.get("mfcc", [])
     profile.genre_diversity_score  = genre_diversity
     profile.artist_diversity_score = artist_diversity
-    profile.feature_vector         = normalised_vector
+    profile.feature_vector         = raw_vector_list
     profile.last_synced            = timezone.now()
     profile.save()
 

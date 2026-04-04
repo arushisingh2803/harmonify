@@ -20,41 +20,55 @@ SCALER_PATH = os.path.join(MODEL_DIR, 'scaler.pkl')
 
 ARCHETYPES = [
     {"name": "seeker",
-     "audio": {"tempo": 130, "centroid": 3000, "zcr": 0.08, "rms": 0.05},
-     "genres": ["electronic", "indie", "jazz", "latin", "folk"],
-     "diversity": (0.85, 0.80)},
+     "audio": {"tempo": 128, "centroid": 3800, "zcr": 0.09, "rms": 0.22},
+     "genres": ["electronic", "indie", "jazz", "latin", "folk", "reggae", "blues"],
+     "diversity": (0.90, 0.95)},
+
     {"name": "guardian",
-     "audio": {"tempo": 110, "centroid": 2000, "zcr": 0.04, "rms": 0.03},
+     "audio": {"tempo": 95,  "centroid": 1600, "zcr": 0.04, "rms": 0.16},
      "genres": ["indie", "alternative", "folk"],
-     "diversity": (0.20, 0.15)},
+     "diversity": (0.15, 0.12)},
+
     {"name": "zealous",
-     "audio": {"tempo": 160, "centroid": 4500, "zcr": 0.12, "rms": 0.09},
+     "audio": {"tempo": 168, "centroid": 5200, "zcr": 0.14, "rms": 0.28},
      "genres": ["electronic", "metal", "dance", "punk"],
-     "diversity": (0.55, 0.60)},
+     "diversity": (0.58, 0.62)},
+
     {"name": "wistful",
-     "audio": {"tempo": 75, "centroid": 1500, "zcr": 0.02, "rms": 0.02},
-     "genres": ["soul", "blues", "jazz", "folk", "classical"],
-     "diversity": (0.40, 0.35)},
+     "audio": {"tempo": 68,  "centroid": 1200, "zcr": 0.03, "rms": 0.15},
+     "genres": ["soul", "blues", "jazz", "classical"],
+     "diversity": (0.38, 0.30)},
+
     {"name": "socialite",
-     "audio": {"tempo": 120, "centroid": 2800, "zcr": 0.06, "rms": 0.04},
+     "audio": {"tempo": 118, "centroid": 2900, "zcr": 0.07, "rms": 0.24},
      "genres": ["pop", "dance", "r&b", "latin"],
-     "diversity": (0.50, 0.55)},
+     "diversity": (0.52, 0.58)},
+
     {"name": "formalist",
-     "audio": {"tempo": 100, "centroid": 2200, "zcr": 0.05, "rms": 0.035},
+     "audio": {"tempo": 105, "centroid": 2300, "zcr": 0.05, "rms": 0.19},
      "genres": ["metal"],
-     "diversity": (0.10, 0.75)},
+     "diversity": (0.06, 0.85)},
 ]
 
 
-def _make_feature_vector(archetype, noise=0.15):
+def _make_feature_vector(archetype, noise=0.05):
     a = archetype["audio"]
+    audio_weight = 3.0
 
     def jitter(val):
         return val * (1 + random.gauss(0, noise))
 
-    audio_vec = [jitter(a["tempo"]), jitter(a["centroid"]),
-                 jitter(a["zcr"]), jitter(a["rms"])]
-    mfcc_vec  = [jitter(random.gauss(0, 1) * (i + 1) * 0.5) for i in range(13)]
+    audio_vec = [
+        jitter(a["tempo"])    * audio_weight,
+        jitter(a["centroid"]) * audio_weight,
+        jitter(a["zcr"])      * audio_weight,
+        jitter(a["rms"])      * audio_weight,
+    ]
+
+    mfcc_vec = [
+        jitter(random.gauss(0, 1) * (i + 1) * 0.5) * audio_weight
+        for i in range(13)
+    ]
 
     genre_set = set(archetype["genres"])
     genre_vec = [1.0 if g in genre_set else 0.0 for g in GENRE_VOCABULARY]
@@ -66,7 +80,7 @@ def _make_feature_vector(archetype, noise=0.15):
         artist_vec = artist_vec / artist_vec.sum()
 
     gd, ad = archetype["diversity"]
-    diversity_vec = [jitter(gd), jitter(ad)]
+    diversity_vec = [jitter(gd) * 5.0, jitter(ad) * 5.0]
 
     return audio_vec + mfcc_vec + genre_vec + artist_vec.tolist() + diversity_vec
 
