@@ -43,6 +43,7 @@ def _get_access_token(user):
 def _compute_diversity(top_artists, top_genres):
     # genre diversity — ratio of unique MAPPED genres to vocabulary size
     # a user with 3 genres gets a lower score than one with 12
+    from ml.user_profile import _normalise_genre
     mapped_genres = [_normalise_genre(g) for g in top_genres]
     unique_mapped  = len(set(mapped_genres) - {"other"})
     # genre is normalised to a 0-1 scale based on how many distinct genres the user has
@@ -159,17 +160,15 @@ def _normalise_genre(genre: str) -> str:
     if g in GENRE_PARENT_MAP:
         return GENRE_PARENT_MAP[g]
     # fallback to "other" if no match found
-    for vocab_genre in GENRE_VOCABULARY[:-1]:
+    for vocab_genre in GENRE_VOCABULARY[:-1]: 
         if vocab_genre in g:
             return vocab_genre
     return "other"
 
-
-# maps all genres to parent categories first
+ # maps all genres to parent categories first
 def _encode_genres(user_genres):
     mapped = set(_normalise_genre(g) for g in user_genres)
     return [1.0 if g in mapped else 0.0 for g in GENRE_VOCABULARY]
-
 
 # artists are encoded using weighted hashing to create a fixed-size vector that represents the user's top artists with correct importance.
 def _encode_artists(top_artists, vocab_size=50):
@@ -187,29 +186,24 @@ def _encode_artists(top_artists, vocab_size=50):
 # final feature vector built by combining audio features, genre and artist encodings - also normalised for ML model input.
 def _build_feature_vector(audio_features, top_genres, top_artists,
                            genre_diversity, artist_diversity):
+    audio_weight = 3.0
+
     audio_vec = [
-        audio_features.get("tempo", 0.0)    * AUDIO_WEIGHT,
-        audio_features.get("centroid", 0.0) * AUDIO_WEIGHT,
-        audio_features.get("zcr", 0.0)      * AUDIO_WEIGHT,
-        audio_features.get("rms", 0.0)      * AUDIO_WEIGHT,
+        audio_features.get("tempo", 0.0)    * audio_weight,
+        audio_features.get("centroid", 0.0) * audio_weight,
+        audio_features.get("zcr", 0.0)      * audio_weight,
+        audio_features.get("rms", 0.0)      * audio_weight,
     ]
+
 
     mfcc = audio_features.get("mfcc", [0.0] * 13)
     if len(mfcc) < 13:
-        mfcc += [0.0] * (13 - len(mfcc))
-    mfcc = [v * MFCC_WEIGHT for v in mfcc]
+        mfcc = mfcc + [0.0] * (13 - len(mfcc))
+    mfcc = [v * audio_weight for v in mfcc]
 
-    # GENRE
-    genre_vec = [g * GENRE_WEIGHT for g in _encode_genres(top_genres)]
-
-    # ARTIST
-    artist_vec = [a * ARTIST_WEIGHT for a in _encode_artists(top_artists)]
-
-    # DIVERSITY
-    diversity_vec = [
-        genre_diversity  * DIVERSITY_WEIGHT,
-        artist_diversity * DIVERSITY_WEIGHT,
-    ]
+    genre_vec     = _encode_genres(top_genres)
+    artist_vec    = _encode_artists(top_artists)
+    diversity_vec = [genre_diversity * 5.0, artist_diversity * 5.0]
 
     return audio_vec + mfcc + genre_vec + artist_vec + diversity_vec
 
@@ -237,6 +231,7 @@ def build_user_profile(user):
         genre_diversity, artist_diversity
     )
     raw_vector_list = [float(v) for v in raw_vector]
+    raw_vector_list = [float(v) for v in raw_vector]
 
     profile, _ = UserProfile.objects.get_or_create(user=user)
     profile.top_artist_ids         = top_artist_ids
@@ -250,6 +245,7 @@ def build_user_profile(user):
     profile.avg_mfcc               = audio_features.get("mfcc", [])
     profile.genre_diversity_score  = genre_diversity
     profile.artist_diversity_score = artist_diversity
+    profile.feature_vector         = raw_vector_list
     profile.feature_vector         = raw_vector_list
     profile.last_synced            = timezone.now()
     profile.save()

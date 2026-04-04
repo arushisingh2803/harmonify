@@ -30,14 +30,24 @@ ARCHETYPES = [
      "genres": ["electronic", "indie", "jazz", "latin", "folk", "reggae", "blues"],
      "diversity": (0.90, 0.95)},
 
+     "audio": {"tempo": 128, "centroid": 3800, "zcr": 0.09, "rms": 0.22},
+     "genres": ["electronic", "indie", "jazz", "latin", "folk", "reggae", "blues"],
+     "diversity": (0.90, 0.95)},
+
     {"name": "guardian",
+     "audio": {"tempo": 95,  "centroid": 1600, "zcr": 0.04, "rms": 0.16},
      "audio": {"tempo": 95,  "centroid": 1600, "zcr": 0.04, "rms": 0.16},
      "genres": ["indie", "alternative", "folk"],
      "diversity": (0.15, 0.12)},
 
+     "diversity": (0.15, 0.12)},
+
     {"name": "zealous",
      "audio": {"tempo": 168, "centroid": 5200, "zcr": 0.14, "rms": 0.28},
+     "audio": {"tempo": 168, "centroid": 5200, "zcr": 0.14, "rms": 0.28},
      "genres": ["electronic", "metal", "dance", "punk"],
+     "diversity": (0.58, 0.62)},
+
      "diversity": (0.58, 0.62)},
 
     {"name": "wistful",
@@ -45,14 +55,23 @@ ARCHETYPES = [
      "genres": ["soul", "blues", "jazz", "classical"],
      "diversity": (0.38, 0.30)},
 
+     "audio": {"tempo": 68,  "centroid": 1200, "zcr": 0.03, "rms": 0.15},
+     "genres": ["soul", "blues", "jazz", "classical"],
+     "diversity": (0.38, 0.30)},
+
     {"name": "socialite",
+     "audio": {"tempo": 118, "centroid": 2900, "zcr": 0.07, "rms": 0.24},
      "audio": {"tempo": 118, "centroid": 2900, "zcr": 0.07, "rms": 0.24},
      "genres": ["pop", "dance", "r&b", "latin"],
      "diversity": (0.52, 0.58)},
 
+     "diversity": (0.52, 0.58)},
+
     {"name": "formalist",
      "audio": {"tempo": 105, "centroid": 2300, "zcr": 0.05, "rms": 0.19},
+     "audio": {"tempo": 105, "centroid": 2300, "zcr": 0.05, "rms": 0.19},
      "genres": ["metal"],
+     "diversity": (0.06, 0.85)},
      "diversity": (0.06, 0.85)},
 ]
 
@@ -67,27 +86,25 @@ ARCHETYPE_TO_PERSONA = {
 }
 
 
-def _make_feature_vector(archetype, noise=0.08):
+def _make_feature_vector(archetype, noise=0.05):
     a = archetype["audio"]
+    audio_weight = 3.0
 
     def jitter(val):
         return val * (1 + random.gauss(0, noise))
 
-    # audio features weighted to match _build_feature_vector in user_profile.py
     audio_vec = [
-        jitter(a["tempo"])    * AUDIO_WEIGHT,
-        jitter(a["centroid"]) * AUDIO_WEIGHT,
-        jitter(a["zcr"])      * AUDIO_WEIGHT,
-        jitter(a["rms"])      * AUDIO_WEIGHT,
+        jitter(a["tempo"])    * audio_weight,
+        jitter(a["centroid"]) * audio_weight,
+        jitter(a["zcr"])      * audio_weight,
+        jitter(a["rms"])      * audio_weight,
     ]
 
-    # realistic MFCC values based on typical librosa output ranges
-    base_mfcc = [random.uniform(-150, 150) if i == 0
-                 else random.uniform(-30, 30)
-                 for i in range(13)]
-    mfcc_vec = [jitter(v) * MFCC_WEIGHT for v in base_mfcc]
+    mfcc_vec = [
+        jitter(random.gauss(0, 1) * (i + 1) * 0.5) * audio_weight
+        for i in range(13)
+    ]
 
-    # genre one-hot weighted to match _build_feature_vector
     genre_set = set(archetype["genres"])
     genre_vec = [
         (1.0 if g in genre_set else 0.0) * GENRE_WEIGHT
@@ -106,7 +123,7 @@ def _make_feature_vector(archetype, noise=0.08):
 
     # diversity weighted to match _build_feature_vector
     gd, ad = archetype["diversity"]
-    diversity_vec = [jitter(gd) * DIVERSITY_WEIGHT, jitter(ad) * DIVERSITY_WEIGHT]
+    diversity_vec = [jitter(gd) * 5.0, jitter(ad) * 5.0]
 
     return audio_vec + mfcc_vec + genre_vec + artist_vec + diversity_vec
 
