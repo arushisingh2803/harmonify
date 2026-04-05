@@ -25,15 +25,15 @@ export default function ConcertRecommendations() {
   }
 
   useEffect(() => {
-    const token = localStorage.getItem("spotify_token");
+    const userId = localStorage.getItem("harmonify_user_id");
 
-    if (!token) {
+    if (!userId) {
       setError("User not authenticated");
       setLoading(false);
       return;
     }
 
-    fetch(`http://localhost:8000/concerts-recommendations/?token=${token}`)
+    fetch(`http://localhost:8000/concerts-recommendations/?user_id=${userId}`)
       .then((res) => {
         if (!res.ok) throw new Error("Failed to fetch concert recommendations");
         return res.json();
