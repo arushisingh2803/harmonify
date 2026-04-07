@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import axios from "axios";
-import AudioProfileChart from "./AudioProfileChart.tsx";
 import { FaHome, FaMusic, FaUsers } from "react-icons/fa";
 import "./style/Dashboard.css";
+import AudioProfileChart from "./AudioProfileChart.tsx";
 import ConcertRecommendations from "./ConcertRecommendations.tsx";
+import SimilarUsers from "./SimilarUsers.tsx"
 
 export default function Dashboard() {
   const { search } = useLocation();
@@ -146,6 +147,9 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+      {activeTab === "matches" && (
+        <SimilarUsers userId={userId ?? ""} />
+      )}
 
     </div>
   );

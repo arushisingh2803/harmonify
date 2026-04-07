@@ -1,0 +1,115 @@
+.similar-users-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.similar-users-header {
+  padding: 1.25rem 1.5rem;
+  border-radius: 16px;
+}
+
+.similar-users-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.match-card {
+  background: white;
+  border-radius: 16px;
+  padding: 1.25rem 1.5rem;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.match-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.match-label {
+  margin: 0;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #aaa;
+}
+
+.match-name {
+  margin: 2px 0 0;
+  font-size: 1rem;
+  font-weight: 800;
+  color: #1a1a2e;
+}
+
+.match-badge {
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.persona-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.persona-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.tag {
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.divider {
+  border-top: 1px solid #f0f0f0;
+}
+
+.shared-label {
+  margin: 0 0 0.4rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #aaa;
+}
+
+.shared-chip {
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  background: #f0f0f0;
+  color: #555;
+}
+
+.centered {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: #aaa;
+}
+
+.empty-state {
+  padding: 2rem;
+  text-align: center;
+}
