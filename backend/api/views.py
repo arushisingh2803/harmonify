@@ -227,6 +227,7 @@ def concerts_recommendations(request):
 
     return JsonResponse({"time_range": time_range, "concerts": concerts})
 
+# endpoint for fetching user persona/profile info
 def user_persona(request):
     user_id = request.GET.get("user_id")
     if not user_id:
@@ -243,3 +244,89 @@ def user_persona(request):
         return JsonResponse({"error": "User not found"}, status=404)
     except UserProfile.DoesNotExist:
         return JsonResponse({"error": "Profile not found"}, status=404)
+
+# endpoint for finding similar users based on persona    
+def similar_users(request):
+    user_id = request.GET.get("user_id")
+    if not user_id:
+        return JsonResponse({"error": "user_id required"}, status=400)
+
+    try:
+        user = User.objects.get(id=user_id)
+        profile = UserProfile.objects.get(user=user)
+    except (User.DoesNotExist, UserProfile.DoesNotExist):
+        return JsonResponse({"error": "Profile not found"}, status=404)
+
+    if profile.cluster_id is None:
+        return JsonResponse({"error": "User not yet classified"}, status=400)
+
+    # all users in given cluster are fetched, excluding self and synthetic profiles
+    same_cluster = UserProfile.objects.filter(
+        cluster_id=profile.cluster_id
+    ).exclude(
+        user=user
+    ).exclude(
+        user__username__startswith="synthetic_"
+    ).exclude(
+        feature_vector=[]
+    )
+
+    if not same_cluster.exists():
+        return JsonResponse({"matches": [], "persona_type": profile.persona_type})
+
+    # KNN similarity score to calculate percentage match - euclidean distance of the feature vectors is used along with shared genres and artists as additional context
+    import numpy as np
+    import joblib, os
+
+    model_dir = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)),
+        '..', 'ml', 'saved_models'
+    )
+    scaler = joblib.load(os.path.join(model_dir, 'scaler.pkl'))
+
+    user_vec = np.array(profile.feature_vector).reshape(1, -1)
+    user_vec_scaled = scaler.transform(user_vec)
+
+    matches = []
+    for other in same_cluster:
+        other_vec = np.array(other.feature_vector).reshape(1, -1)
+        other_vec_scaled = scaler.transform(other_vec)
+
+        # euclidean distance — lower = more similar
+        distance = float(np.linalg.norm(user_vec_scaled - other_vec_scaled))
+
+        # shared genres using normalised parent mapping
+        from ml.user_profile import _normalise_genre
+        user_genres  = set(_normalise_genre(g) for g in (profile.top_genres or [])) - {"other"}
+        other_genres = set(_normalise_genre(g) for g in (other.top_genres or [])) - {"other"}
+        shared_genres = list(user_genres & other_genres)
+
+        # shared artists
+        user_artists  = set(profile.top_artist_ids or [])
+        other_artists = set(other.top_artist_ids or [])
+        shared_artist_count = len(user_artists & other_artists)
+
+        # match percentage — convert distance to 0-100 score
+        # clamp distance to a sensible range then invert
+        match_pct = max(0, round(100 - (distance / 20) * 100))
+
+        matches.append({
+            "user_id":            other.user.id,
+            "display_name":       other.user.username,
+            "persona_type":       other.persona_type or "",
+            "persona_tags":       other.persona_tags or [],
+            "shared_genres":      shared_genres,
+            "shared_artist_count": shared_artist_count,
+            "match_pct":          match_pct,
+            "distance":           distance,
+        })
+
+    # sort by distance ascending — closest first
+    matches.sort(key=lambda x: x["distance"])
+
+    # return top 10
+    return JsonResponse({
+        "my_persona":  profile.persona_type,
+        "cluster_id":  profile.cluster_id,
+        "matches":     matches[:10],
+    })
