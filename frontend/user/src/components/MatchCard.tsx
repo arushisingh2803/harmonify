@@ -6,6 +6,7 @@ type Match = {
   persona_type: string;
   persona_tags: string[];
   shared_genres: string[];
+  shared_artist: string[];
   shared_artist_count: number;
   match_pct: number;
 };
@@ -29,7 +30,7 @@ export default function MatchCard({ match }: { match: Match }) {
     >
       <div className="match-top">
         <div>
-          <p className="match-label">Harmonify User</p>
+          <p className="match-label">Spotify User</p>
           <h3 className="match-name">{match.display_name}</h3>
         </div>
 

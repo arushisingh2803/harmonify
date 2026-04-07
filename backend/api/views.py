@@ -304,6 +304,7 @@ def similar_users(request):
         # shared artists
         user_artists  = set(profile.top_artist_ids or [])
         other_artists = set(other.top_artist_ids or [])
+        shared_artists = list(user_artists & other_artists)
         shared_artist_count = len(user_artists & other_artists)
 
         # match percentage — convert distance to 0-100 score
@@ -316,6 +317,7 @@ def similar_users(request):
             "persona_type":       other.persona_type or "",
             "persona_tags":       other.persona_tags or [],
             "shared_genres":      shared_genres,
+            "shared_artists":     shared_artists,
             "shared_artist_count": shared_artist_count,
             "match_pct":          match_pct,
             "distance":           distance,
