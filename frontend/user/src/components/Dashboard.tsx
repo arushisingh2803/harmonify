@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import axios from "axios";
 import AudioProfileChart from "./AudioProfileChart.tsx";
-import { FaHome, FaMusic } from "react-icons/fa";
+import { FaHome, FaMusic, FaUsers } from "react-icons/fa";
 import "./style/Dashboard.css";
 import ConcertRecommendations from "./ConcertRecommendations.tsx";
 
@@ -19,7 +19,7 @@ export default function Dashboard() {
   const [avgFeatures, setAvgFeatures] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [timeRange, setTimeRange] = useState<"short_term" | "medium_term" | "long_term">("long_term");
-  const [activeTab, setActiveTab] = useState<"dashboard" | "concerts">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "concerts" | "matches">("dashboard");
 
   useEffect(() => {
     if (userId) localStorage.setItem("harmonify_user_id", userId);
@@ -69,6 +69,9 @@ export default function Dashboard() {
         </button>
         <button className={activeTab === "concerts" ? "active" : ""} onClick={() => setActiveTab("concerts")}>
           <FaMusic size={24} />
+        </button>
+        <button className={activeTab === "matches" ? "active" : ""} onClick={() => setActiveTab("matches")}>
+          <FaUsers size={24} />
         </button>
       </div>
 

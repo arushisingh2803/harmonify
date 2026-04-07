@@ -13,5 +13,6 @@ urlpatterns = [
     path("top-artists/", views.spotify_top_artists),
     path("extract-features/", views.extract_features),
     path("concerts-recommendations/", views.concerts_recommendations),
-    path('user-persona/', views.user_persona)
+    path('user-persona/', views.user_persona),
+    path('similar-users/', views.similar_users),
 ]
