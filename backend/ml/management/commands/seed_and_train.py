@@ -7,18 +7,13 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
+from collections import Counter
 from core.models import UserProfile
 from ml.user_profile import (
     GENRE_VOCABULARY,
     PERSONA_DEFINITIONS,
     AUDIO_WEIGHT,
-    MFCC_WEIGHT,
-    GENRE_WEIGHT,
-    ARTIST_WEIGHT,
-    DIVERSITY_WEIGHT,
-    PERSONA_DEFINITIONS,
-    AUDIO_WEIGHT,
-    MFCC_WEIGHT,
+    SPECTRAL_WEIGHT,
     GENRE_WEIGHT,
     ARTIST_WEIGHT,
     DIVERSITY_WEIGHT,
@@ -31,30 +26,109 @@ KMEANS_PATH = os.path.join(MODEL_DIR, 'kmeans.pkl')
 SCALER_PATH = os.path.join(MODEL_DIR, 'scaler.pkl')
 
 ARCHETYPES = [
-    {"name": "seeker",
-     "audio": {"tempo": 128, "centroid": 3800, "zcr": 0.09, "rms": 0.22},
-     "genres": ["electronic", "indie", "jazz", "latin", "folk", "reggae", "blues"],
-     "diversity": (0.90, 0.95)},
-    {"name": "guardian",
-     "audio": {"tempo": 95,  "centroid": 1600, "zcr": 0.04, "rms": 0.16},
-     "genres": ["indie", "alternative", "folk"],
-     "diversity": (0.15, 0.12)},
-    {"name": "zealous",
-     "audio": {"tempo": 168, "centroid": 5200, "zcr": 0.14, "rms": 0.28},
-     "genres": ["electronic", "metal", "dance", "punk"],
-     "diversity": (0.58, 0.62)},
-    {"name": "wistful",
-     "audio": {"tempo": 68,  "centroid": 1200, "zcr": 0.03, "rms": 0.15},
-     "genres": ["soul", "blues", "jazz", "classical"],
-     "diversity": (0.38, 0.30)},
-    {"name": "socialite",
-     "audio": {"tempo": 118, "centroid": 2900, "zcr": 0.07, "rms": 0.24},
-     "genres": ["pop", "dance", "r&b", "latin"],
-     "diversity": (0.52, 0.58)},
-    {"name": "formalist",
-     "audio": {"tempo": 105, "centroid": 2300, "zcr": 0.05, "rms": 0.19},
-     "genres": ["metal"],
-     "diversity": (0.06, 0.85)},
+    {
+        "name": "seeker",
+        # Electronic + indie + jazz + folk — varied, mid-high energy
+        "audio": {
+            "tempo":             lambda: random.uniform(110, 145),
+            "centroid":          lambda: random.uniform(2500, 4500),
+            "zcr":               lambda: random.uniform(0.06, 0.12),
+            "rms":               lambda: random.uniform(0.18, 0.28),
+            "spectral_contrast": lambda: random.uniform(20, 32),
+            "spectral_flatness": lambda: random.uniform(0.08, 0.18),
+        },
+        "genres":    ["electronic", "indie", "jazz", "folk", "latin", "reggae"],
+        "diversity": lambda: (
+            random.uniform(0.70, 0.95),   # genre diversity — high
+            random.uniform(0.65, 0.90),   # artist diversity — high
+            random.uniform(0.08, 0.20),   # genre concentration — low
+        ),
+    },
+        {"name": "guardian",
+        "audio": {
+            "tempo":             lambda: random.uniform(95, 125),
+            "centroid":          lambda: random.uniform(1500, 2300),
+            "zcr":               lambda: random.uniform(0.04, 0.08),
+            "rms":               lambda: random.uniform(0.18, 0.28),
+            "spectral_contrast": lambda: random.uniform(14, 22),
+            "spectral_flatness": lambda: random.uniform(0.07, 0.14),
+        },
+        "genres": ["indie", "alternative", "rock", "art pop", "pop", "dream pop"],
+        "diversity": lambda: (
+            random.uniform(0.08, 0.20),
+            random.uniform(0.20, 0.40),
+            random.uniform(0.50, 0.75),
+        )},
+    {
+        "name": "zealous",
+        # Metal + electronic + punk — loud, fast, bright
+        "audio": {
+            "tempo":             lambda: random.uniform(150, 190),
+            "centroid":          lambda: random.uniform(4000, 6000),
+            "zcr":               lambda: random.uniform(0.11, 0.18),
+            "rms":               lambda: random.uniform(0.24, 0.32),
+            "spectral_contrast": lambda: random.uniform(28, 42),
+            "spectral_flatness": lambda: random.uniform(0.03, 0.08),
+        },
+        "genres":    ["metal", "electronic", "punk", "dance"],
+        "diversity": lambda: (
+            random.uniform(0.40, 0.65),
+            random.uniform(0.50, 0.75),
+            random.uniform(0.35, 0.55),
+        ),
+    },
+    {
+        "name": "wistful",
+        # Soul + blues + jazz + classical — slow, quiet, warm
+        "audio": {
+            "tempo":             lambda: random.uniform(58, 88),
+            "centroid":          lambda: random.uniform(800, 1800),
+            "zcr":               lambda: random.uniform(0.02, 0.05),
+            "rms":               lambda: random.uniform(0.12, 0.20),
+            "spectral_contrast": lambda: random.uniform(8, 16),
+            "spectral_flatness": lambda: random.uniform(0.15, 0.28),
+        },
+        "genres":    ["soul", "blues", "jazz", "classical", "folk"],
+        "diversity": lambda: (
+            random.uniform(0.28, 0.50),
+            random.uniform(0.22, 0.42),
+            random.uniform(0.42, 0.65),
+        ),
+    },
+        {"name": "guardian",
+        "audio": {
+            "tempo":             lambda: random.uniform(95, 125),
+            "centroid":          lambda: random.uniform(1500, 2300),
+            "zcr":               lambda: random.uniform(0.04, 0.08),
+            "rms":               lambda: random.uniform(0.18, 0.28),
+            "spectral_contrast": lambda: random.uniform(14, 22),
+            "spectral_flatness": lambda: random.uniform(0.07, 0.14),
+        },
+        # matches real user genres — indie/dream pop/rock listeners
+        "genres": ["indie", "alternative", "rock", "art pop", "pop", "dream pop"],
+        "diversity": lambda: (
+            random.uniform(0.08, 0.20),
+            random.uniform(0.20, 0.40),
+            random.uniform(0.50, 0.75),
+        )},
+    {
+        "name": "formalist",
+        # Metal only — very loud, fast, genre-loyal
+        "audio": {
+            "tempo":             lambda: random.uniform(140, 185),
+            "centroid":          lambda: random.uniform(3800, 5800),
+            "zcr":               lambda: random.uniform(0.10, 0.16),
+            "rms":               lambda: random.uniform(0.22, 0.32),
+            "spectral_contrast": lambda: random.uniform(30, 45),
+            "spectral_flatness": lambda: random.uniform(0.02, 0.06),
+        },
+        "genres":    ["metal"],
+        "diversity": lambda: (
+            random.uniform(0.02, 0.08),   # almost no genre diversity
+            random.uniform(0.82, 0.99),   # very high artist diversity
+            random.uniform(0.88, 0.99),   # extremely high concentration
+        ),
+    },
 ]
 
 # maps archetype name to persona definition for majority-vote labelling
@@ -68,61 +142,44 @@ ARCHETYPE_TO_PERSONA = {
 }
 
 
-def _make_feature_vector(archetype, noise=0.08):
+def _make_feature_vector(archetype):
+    # sample from ranges — no fixed value + noise, actual distribution sampling
     a = archetype["audio"]
 
-    def jitter(val):
-        return val * (1 + random.gauss(0, noise))
-
-    # audio features weighted to match _build_feature_vector in user_profile.py
     audio_vec = [
-        jitter(a["tempo"])    * AUDIO_WEIGHT,
-        jitter(a["centroid"]) * AUDIO_WEIGHT,
-        jitter(a["zcr"])      * AUDIO_WEIGHT,
-        jitter(a["rms"])      * AUDIO_WEIGHT,
+        (a["tempo"]()             / 200.0)  * AUDIO_WEIGHT,
+        (a["centroid"]()          / 6000.0) * AUDIO_WEIGHT,
+        (a["zcr"]()               / 0.20)   * AUDIO_WEIGHT,
+        (a["rms"]()               / 0.30)   * AUDIO_WEIGHT,
     ]
 
-    # realistic MFCC values based on typical librosa output ranges
-    base_mfcc = [random.uniform(-150, 150) if i == 0
-                 else random.uniform(-30, 30)
-                 for i in range(13)]
-    mfcc_vec = [jitter(v) * MFCC_WEIGHT for v in base_mfcc]
+    spectral_vec = [
+        a["spectral_contrast"]() * SPECTRAL_WEIGHT,
+        a["spectral_flatness"]() * SPECTRAL_WEIGHT,
+    ]
 
-    # genre one-hot weighted to match _build_feature_vector
     genre_set = set(archetype["genres"])
     genre_vec = [
         (1.0 if g in genre_set else 0.0) * GENRE_WEIGHT
         for g in GENRE_VOCABULARY
     ]
-    genre_vec = [
-        (1.0 if g in genre_set else 0.0) * GENRE_WEIGHT
-        for g in GENRE_VOCABULARY
-    ]
 
-    # deterministic artist vector per archetype so same archetype = similar artists
-    # deterministic artist vector per archetype so same archetype = similar artists
-    artist_vec = np.zeros(50)
-    base_ids = [hash(archetype["name"] + str(i)) for i in range(10)]
-    for i, aid in enumerate(base_ids):
-        bucket = aid % 50
-        artist_vec[bucket] += (10 - i) / 10
-    base_ids = [hash(archetype["name"] + str(i)) for i in range(10)]
-    for i, aid in enumerate(base_ids):
-        bucket = aid % 50
-        artist_vec[bucket] += (10 - i) / 10
+    # deterministic artist vector per archetype
+    artist_vec = np.zeros(10)
+    for i in range(10):
+        artist_vec[i] = (10 - i) / 10
     if artist_vec.sum() > 0:
         artist_vec = artist_vec / artist_vec.sum()
     artist_vec = (artist_vec * ARTIST_WEIGHT).tolist()
-    artist_vec = (artist_vec * ARTIST_WEIGHT).tolist()
 
-    # diversity weighted to match _build_feature_vector
-    # diversity weighted to match _build_feature_vector
-    gd, ad = archetype["diversity"]
-    diversity_vec = [jitter(gd) * DIVERSITY_WEIGHT, jitter(ad) * DIVERSITY_WEIGHT]
+    gd, ad, gc = archetype["diversity"]()
+    diversity_vec = [
+        gd * DIVERSITY_WEIGHT,
+        ad * DIVERSITY_WEIGHT,
+        gc * DIVERSITY_WEIGHT,
+    ]
 
-    return audio_vec + mfcc_vec + genre_vec + artist_vec + diversity_vec
-    return audio_vec + mfcc_vec + genre_vec + artist_vec + diversity_vec
-
+    return audio_vec + spectral_vec + genre_vec + artist_vec + diversity_vec
 
 class Command(BaseCommand):
     help = "Seeds synthetic profiles and trains the initial KMeans model"
@@ -146,32 +203,33 @@ class Command(BaseCommand):
                     if User.objects.filter(username=username).exists():
                         continue
                     user = User.objects.create_user(username=username, password="synthetic")
-                    gd, ad = archetype["diversity"]
+
+                    # call lambdas to get actual values
+                    a            = archetype["audio"]
+                    tempo        = a["tempo"]()
+                    centroid     = a["centroid"]()
+                    zcr          = a["zcr"]()
+                    rms          = a["rms"]()
+                    gd, ad, gc   = archetype["diversity"]()
+
                     persona_name = ARCHETYPE_TO_PERSONA[archetype["name"]]
                     definition   = next(
-                        p for p in PERSONA_DEFINITIONS
-                        if p["name"] == persona_name
+                        p for p in PERSONA_DEFINITIONS if p["name"] == persona_name
                     )
-                    persona_name = ARCHETYPE_TO_PERSONA[archetype["name"]]
-                    definition   = next(
-                        p for p in PERSONA_DEFINITIONS
-                        if p["name"] == persona_name
-                    )
+
                     UserProfile.objects.create(
                         user=user,
                         top_genres=archetype["genres"],
                         top_artist_ids=[],
                         top_track_ids=[],
-                        avg_tempo=archetype["audio"]["tempo"],
-                        avg_zcr=archetype["audio"]["zcr"],
-                        avg_rms=archetype["audio"]["rms"],
-                        avg_centroid=archetype["audio"]["centroid"],
+                        avg_tempo=tempo,
+                        avg_zcr=zcr,
+                        avg_rms=rms,
+                        avg_centroid=centroid,
                         avg_mfcc=[],
                         genre_diversity_score=gd,
                         artist_diversity_score=ad,
                         feature_vector=_make_feature_vector(archetype),
-                        persona_type=persona_name,
-                        persona_tags=definition["tags"],
                         persona_type=persona_name,
                         persona_tags=definition["tags"],
                         last_synced=timezone.now(),
@@ -200,32 +258,8 @@ class Command(BaseCommand):
 
         # rank features of each centroid against overall dataset to determine defining characteristics of each cluster
         # majority vote — each cluster is labelled by the most common pre-assigned persona among its members
-        from collections import Counter
-        # rank features of each centroid against overall dataset to determine defining characteristics of each cluster
-        # majority vote — each cluster is labelled by the most common pre-assigned persona among its members
-        from collections import Counter
         cluster_to_persona = {}
         for cid in range(k):
-            cluster_profiles = [
-                p for p, label in zip(profiles, kmeans.labels_)
-                if label == cid and p.persona_type
-            ]
-            if cluster_profiles:
-                vote       = Counter(p.persona_type for p in cluster_profiles)
-                best_name  = vote.most_common(1)[0][0]
-                definition = next(
-                    p for p in PERSONA_DEFINITIONS if p["name"] == best_name
-                )
-                cluster_to_persona[cid] = (best_name, definition["tags"])
-                self.stdout.write(
-                    f"  Cluster {cid} -> {best_name} (votes: {dict(vote)})"
-                )
-            else:
-                # fallback to centroid ranking if cluster has no labelled profiles
-                ratings = _rank_centroid(kmeans.cluster_centers_[cid])
-                name, tags = _best_persona_for_centroid(ratings)
-                cluster_to_persona[cid] = (name, tags)
-                self.stdout.write(f"  Cluster {cid} -> {name} (centroid fallback)")
             cluster_profiles = [
                 p for p, label in zip(profiles, kmeans.labels_)
                 if label == cid and p.persona_type
