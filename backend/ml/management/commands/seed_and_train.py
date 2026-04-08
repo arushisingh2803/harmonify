@@ -35,46 +35,23 @@ ARCHETYPES = [
      "audio": {"tempo": 128, "centroid": 3800, "zcr": 0.09, "rms": 0.22},
      "genres": ["electronic", "indie", "jazz", "latin", "folk", "reggae", "blues"],
      "diversity": (0.90, 0.95)},
-
-     "audio": {"tempo": 128, "centroid": 3800, "zcr": 0.09, "rms": 0.22},
-     "genres": ["electronic", "indie", "jazz", "latin", "folk", "reggae", "blues"],
-     "diversity": (0.90, 0.95)},
-
     {"name": "guardian",
-     "audio": {"tempo": 95,  "centroid": 1600, "zcr": 0.04, "rms": 0.16},
      "audio": {"tempo": 95,  "centroid": 1600, "zcr": 0.04, "rms": 0.16},
      "genres": ["indie", "alternative", "folk"],
      "diversity": (0.15, 0.12)},
-
-     "diversity": (0.15, 0.12)},
-
     {"name": "zealous",
-     "audio": {"tempo": 168, "centroid": 5200, "zcr": 0.14, "rms": 0.28},
      "audio": {"tempo": 168, "centroid": 5200, "zcr": 0.14, "rms": 0.28},
      "genres": ["electronic", "metal", "dance", "punk"],
      "diversity": (0.58, 0.62)},
-
-     "diversity": (0.58, 0.62)},
-
     {"name": "wistful",
      "audio": {"tempo": 68,  "centroid": 1200, "zcr": 0.03, "rms": 0.15},
      "genres": ["soul", "blues", "jazz", "classical"],
      "diversity": (0.38, 0.30)},
-
-     "audio": {"tempo": 68,  "centroid": 1200, "zcr": 0.03, "rms": 0.15},
-     "genres": ["soul", "blues", "jazz", "classical"],
-     "diversity": (0.38, 0.30)},
-
     {"name": "socialite",
-     "audio": {"tempo": 118, "centroid": 2900, "zcr": 0.07, "rms": 0.24},
      "audio": {"tempo": 118, "centroid": 2900, "zcr": 0.07, "rms": 0.24},
      "genres": ["pop", "dance", "r&b", "latin"],
      "diversity": (0.52, 0.58)},
-
-     "diversity": (0.52, 0.58)},
-
     {"name": "formalist",
-     "audio": {"tempo": 105, "centroid": 2300, "zcr": 0.05, "rms": 0.19},
      "audio": {"tempo": 105, "centroid": 2300, "zcr": 0.05, "rms": 0.19},
      "genres": ["metal"],
      "diversity": (0.06, 0.85)},

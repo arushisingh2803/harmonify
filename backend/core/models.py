@@ -71,6 +71,8 @@ class UserProfile(models.Model):
     top_artist_ids = models.JSONField(default=list, blank=True)
     top_genres = models.JSONField(default=list, blank=True)
     top_track_ids = models.JSONField(default=list, blank=True)
+    top_artist_names  = models.JSONField(default=list, blank=True)
+    top_artist_images = models.JSONField(default=list, blank=True)
 
     avg_tempo = models.FloatField(null=True, blank=True)
     avg_energy = models.FloatField(null=True, blank=True)

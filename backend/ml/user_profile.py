@@ -1,3 +1,5 @@
+import profile
+
 import numpy as np
 import requests
 import base64
@@ -228,6 +230,11 @@ def build_user_profile(user):
     top_track_ids  = [t["id"] for t in top_tracks]
     top_genres     = [g for a in top_artists for g in a.get("genres", [])]
 
+    top_artist_names  = [a.get("name", "") for a in top_artists]
+    top_artist_images = [
+        a["images"][0]["url"] if a.get("images") else ""
+    for a in top_artists ]
+
     print(f"[user_profile] Extracting audio features...")
     audio_features = extract_avg_audio_features(top_tracks)
 
@@ -243,6 +250,8 @@ def build_user_profile(user):
     profile, _ = UserProfile.objects.get_or_create(user=user)
     profile.top_artist_ids         = top_artist_ids
     profile.top_track_ids          = top_track_ids
+    profile.top_artist_names  = top_artist_names
+    profile.top_artist_images = top_artist_images
     profile.top_genres             = list(set(top_genres))
     profile.avg_tempo              = audio_features.get("tempo")
     profile.avg_energy             = None

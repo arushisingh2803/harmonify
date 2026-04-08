@@ -302,10 +302,38 @@ def similar_users(request):
         shared_genres = list(user_genres & other_genres)
 
         # shared artists
+        user_artist_lookup = {
+            aid: {"name": name, "image": img}
+            for aid, name, img in zip(
+                profile.top_artist_ids or [],
+                profile.top_artist_names or [],
+                profile.top_artist_images or [],
+            )
+        }
+
+        # build artist lookup for other user to get names and images for shared artists
+        other_artist_lookup = {
+            aid: {"name": name, "image": img}
+            for aid, name, img in zip(
+                other.top_artist_ids or [],
+                other.top_artist_names or [],
+                other.top_artist_images or [],
+            )
+        }
+
         user_artists  = set(profile.top_artist_ids or [])
         other_artists = set(other.top_artist_ids or [])
-        shared_artists = list(user_artists & other_artists)
-        shared_artist_count = len(user_artists & other_artists)
+        shared_ids    = user_artists & other_artists
+
+        shared_artists = [
+            {
+                "id":    aid,
+                "name":  user_artist_lookup.get(aid, {}).get("name", "Unknown"),
+                "image": user_artist_lookup.get(aid, {}).get("image", ""),
+            }
+            for aid in shared_ids
+        ]
+        shared_artist_count = len(shared_ids)
 
         # match percentage — convert distance to 0-100 score
         # clamp distance to a sensible range then invert
