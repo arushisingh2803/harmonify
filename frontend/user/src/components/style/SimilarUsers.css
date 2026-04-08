@@ -118,3 +118,65 @@
   padding: 2rem;
   text-align: center;
 }
+
+.artist-bubbles-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.artist-bubbles {
+  position: relative;
+  height: 36px;
+}
+
+.artist-bubble {
+  position: absolute;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid white;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+}
+
+.artist-bubble-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.artist-bubble-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-family: 'Lato', sans-serif;
+  border-radius: 50%;
+}
+
+.artist-bubble-overflow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  font-weight: 700;
+  font-family: 'Lato', sans-serif;
+  border-radius: 50%;
+}
+
+.artist-names {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+}
+
+.artist-name-chip {
+  font-size: 0.7rem;
+  color: #777;
+  font-family: 'Lato', sans-serif;
+}
