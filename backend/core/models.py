@@ -80,6 +80,8 @@ class UserProfile(models.Model):
     avg_rms = models.FloatField(null=True, blank=True)
     avg_centroid = models.FloatField(null=True, blank=True)
     avg_mfcc = models.JSONField(default=list, blank=True)
+    avg_spectral_contrast = models.FloatField(null=True, blank=True)
+    avg_spectral_flatness = models.FloatField(null=True, blank=True)
 
     genre_diversity_score = models.FloatField(null=True, blank=True)
     artist_diversity_score = models.FloatField(null=True, blank=True)
