@@ -295,10 +295,10 @@ def similar_users(request):
         # euclidean distance — lower = more similar
         distance = float(np.linalg.norm(user_vec_scaled - other_vec_scaled))
 
-        # shared genres using normalised parent mapping
-        from ml.user_profile import _normalise_genre
-        user_genres  = set(_normalise_genre(g) for g in (profile.top_genres or [])) - {"other"}
-        other_genres = set(_normalise_genre(g) for g in (other.top_genres or [])) - {"other"}
+        # shared genres using raw spotify genres
+        # preserves distinction between e.g. bollywood and pop
+        user_genres  = set(g.lower().strip() for g in (profile.top_genres or []))
+        other_genres = set(g.lower().strip() for g in (other.top_genres or []))
         shared_genres = list(user_genres & other_genres)
 
         # shared artists
@@ -337,7 +337,7 @@ def similar_users(request):
 
         # match percentage — convert distance to 0-100 score
         # clamp distance to a sensible range then invert
-        match_pct = max(0, round(100 - (distance / 20) * 100))
+        match_pct = max(0, min(100, round(100 - (distance / 8) * 100)))
 
         matches.append({
             "user_id":            other.user.id,

@@ -54,5 +54,7 @@ def extract_avg_audio_features(tracks):
         "rms":      float(np.mean([f["rms"]      for f in collected])),
         "energy":   float(np.mean([f["energy"]   for f in collected])),
         "mood":     float(np.mean([f["mood"]     for f in collected])),
+        "spectral_contrast": float(np.mean([f["spectral_contrast"] for f in collected])),
+        "spectral_flatness": float(np.mean([f["spectral_flatness"] for f in collected])),
         "mfcc":     np.mean([f["mfcc"] for f in collected], axis=0).tolist(),
     }

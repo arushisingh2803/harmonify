@@ -29,7 +29,7 @@ class Command(BaseCommand):
         self.stdout.write("SYNTHETIC ARCHETYPE AUDIO SUMMARY")
         self.stdout.write("=" * 60)
 
-        archetype_names = ['guardian', 'socialite', 'seeker', 'wistful', 'zealous', 'formalist']
+        archetype_names = ['guardian', 'seeker', 'wistful', 'zealous', 'formalist']
         for name in archetype_names:
             profiles = list(UserProfile.objects.filter(
                 user__username__startswith=f'synthetic_{name}'
@@ -95,11 +95,11 @@ class Command(BaseCommand):
         self.stdout.write("\n" + "=" * 60)
         self.stdout.write("FEATURE SPACE GAP ANALYSIS")
         self.stdout.write("=" * 60)
+
         real_profiles = [
             UserProfile.objects.get(user=u)
             for u in User.objects.exclude(username__startswith='synthetic_')
         ]
-
         synth_profiles = list(
             UserProfile.objects.filter(
                 user__username__startswith='synthetic_'
@@ -119,9 +119,20 @@ class Command(BaseCommand):
                 self.stdout.write(f"  {synth_vecs.mean(axis=0)[:6].round(3)}")
                 self.stdout.write(f"\nDimension-wise gap (real - synthetic mean):")
                 gap = real_vecs.mean(axis=0) - synth_vecs.mean(axis=0)
-                self.stdout.write(f"  first 6:  {gap[:6].round(3)}")
-                self.stdout.write(f"  last 3 (diversity): {gap[-3:].round(3)}")
+                self.stdout.write(f"  first 6:       {gap[:6].round(3)}")
+                self.stdout.write(f"  last 4 (diversity — gdiv, adiv, conc, entropy): {gap[-4:].round(3)}")
                 self.stdout.write(f"\nLargest gaps (dim index: gap value):")
                 top_gaps = np.argsort(np.abs(gap))[::-1][:8]
                 for idx in top_gaps:
-                    self.stdout.write(f"  dim {idx}: {gap[idx]:.3f}")
+                    label = ""
+                    if idx == 0:   label = "(tempo)"
+                    elif idx == 1: label = "(centroid)"
+                    elif idx == 2: label = "(zcr)"
+                    elif idx == 3: label = "(rms)"
+                    elif idx == 4: label = "(spectral_contrast)"
+                    elif idx == 5: label = "(spectral_flatness)"
+                    elif idx == scaler.n_features_in_ - 4: label = "(genre_diversity)"
+                    elif idx == scaler.n_features_in_ - 3: label = "(artist_diversity)"
+                    elif idx == scaler.n_features_in_ - 2: label = "(genre_concentration)"
+                    elif idx == scaler.n_features_in_ - 1: label = "(genre_entropy)"
+                    self.stdout.write(f"  dim {idx} {label}: {gap[idx]:.3f}")
