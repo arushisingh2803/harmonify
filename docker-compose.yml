@@ -1,0 +1,37 @@
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - ./backend/ml/saved_models:/app/ml/saved_models
+    env_file:
+      - ./backend/.env
+    depends_on:
+      - db
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py seed_and_train --users-per-archetype 40 --clusters 5 &&
+             daphne -b 0.0.0.0 -p 8000 backend.asgi:application"
+
+  frontend:
+    build: ./frontend/user
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: harmonify
+      POSTGRES_USER: harmonify
+      POSTGRES_PASSWORD: harmonify
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+volumes:
+  postgres_data:
