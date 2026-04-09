@@ -71,6 +71,8 @@ class UserProfile(models.Model):
     top_artist_ids = models.JSONField(default=list, blank=True)
     top_genres = models.JSONField(default=list, blank=True)
     top_track_ids = models.JSONField(default=list, blank=True)
+    top_artist_names  = models.JSONField(default=list, blank=True)
+    top_artist_images = models.JSONField(default=list, blank=True)
 
     avg_tempo = models.FloatField(null=True, blank=True)
     avg_energy = models.FloatField(null=True, blank=True)
@@ -78,6 +80,8 @@ class UserProfile(models.Model):
     avg_rms = models.FloatField(null=True, blank=True)
     avg_centroid = models.FloatField(null=True, blank=True)
     avg_mfcc = models.JSONField(default=list, blank=True)
+    avg_spectral_contrast = models.FloatField(null=True, blank=True)
+    avg_spectral_flatness = models.FloatField(null=True, blank=True)
 
     genre_diversity_score = models.FloatField(null=True, blank=True)
     artist_diversity_score = models.FloatField(null=True, blank=True)

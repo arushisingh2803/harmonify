@@ -26,7 +26,6 @@ const PERSONA_VISUALS: Record<string, {
   "The Guardian":  { gradient: ["#6366f1", "#8b5cf6"], accent: "#6366f1", description: "You protect what matters — your taste is your identity." },
   "The Zealous":   { gradient: ["#f97316", "#ef4444"], accent: "#f97316", description: "High tempo, high intensity — music as fuel." },
   "The Wistful":   { gradient: ["#fb923c", "#fbbf24"], accent: "#fb923c", description: "You find comfort in sounds that carry memory." },
-  "The Socialite": { gradient: ["#ec4899", "#f43f5e"], accent: "#ec4899", description: "You're tuned into the pulse of what's popular." },
   "The Formalist": { gradient: ["#14b8a6", "#0ea5e9"], accent: "#14b8a6", description: "One genre. Total mastery. No compromises." },
 };
 
@@ -223,19 +222,6 @@ function PersonaShape({ personaType, accent }: { personaType: string; accent: st
             style={{ animationDelay: `${i * 0.3}s` }}/>
         ))}
         <ellipse cx="50" cy="50" rx="6" ry="4" fill={accent}/>
-      </svg>
-    ),
-    "The Socialite": (
-      <svg viewBox="0 0 100 100" width="90" height="90">
-        <style>{`@keyframes soc-pop { 0%,100%{opacity:1} 50%{opacity:0.5} } .soc-n { animation: soc-pop 2s ease-in-out infinite; }`}</style>
-        {([[50,50],[22,30],[78,30],[15,68],[85,68],[50,88]] as Array<[number,number]>).map(([x,y], i) => (
-          <g key={i}>
-            {i > 0 && <line x1="50" y1="50" x2={x} y2={y} stroke={accent} strokeWidth="1" strokeOpacity="0.4"/>}
-            <circle className="soc-n" cx={x} cy={y} r={i === 0 ? 9 : 5}
-              fill={accent} fillOpacity={i === 0 ? 1 : 0.65}
-              style={{ animationDelay: `${i * 0.18}s` }}/>
-          </g>
-        ))}
       </svg>
     ),
     "The Formalist": (
