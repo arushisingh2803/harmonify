@@ -12,7 +12,7 @@ services:
       - db
     command: >
       sh -c "python manage.py migrate &&
-             python manage.py seed_and_train --users-per-archetype 50 --clusters 5 --force-reseed &&
+             python manage.py seed_and_train --users-per-archetype 50 --clusters 5 &&
              daphne -b 0.0.0.0 -p 8000 backend.asgi:application"
 
   frontend:

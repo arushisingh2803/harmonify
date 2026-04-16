@@ -129,3 +129,4 @@ audioread==3.0.1
 numba==0.59.1
 llvmlite==0.42.0
 scipy==1.11.4
+django-extensions==3.2.1 
