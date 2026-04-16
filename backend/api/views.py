@@ -31,6 +31,7 @@ REDIRECT_URI = settings.SPOTIFY_REDIRECT_URI
 TICKETMASTER_API_KEY = settings.TICKETMASTER_API_KEY
 SCOPES = "user-read-private user-read-email user-top-read"
 
+# fetches valid access token, returns None if no valid token found, fetches new token if expired
 def _get_token_for_user_id(user_id):
     try:
         user = User.objects.get(id=user_id)
