@@ -6,7 +6,6 @@ type AvgFeatures = {
   centroid: number;
   zcr: number;
   rms: number;
-  energy: number;
   mood: number;
   mfcc: number[];
 };
@@ -267,7 +266,7 @@ export default function AudioProfileChart({
     ? (PERSONA_VISUALS[persona.persona_type] ?? DEFAULT_VISUAL)
     : DEFAULT_VISUAL;
 
-  const energy = Math.min((avg.energy / 0.30) * 100, 100);
+  const energy = Math.min((avg.rms / 0.30) * 100, 100);
   const mood   = Math.min(((avg.mood - 500) / 7500) * 100, 100);
 
   return (

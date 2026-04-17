@@ -312,16 +312,6 @@ def similar_users(request):
             )
         }
 
-        # build artist lookup for other user to get names and images for shared artists
-        other_artist_lookup = {
-            aid: {"name": name, "image": img}
-            for aid, name, img in zip(
-                other.top_artist_ids or [],
-                other.top_artist_names or [],
-                other.top_artist_images or [],
-            )
-        }
-
         user_artists  = set(profile.top_artist_ids or [])
         other_artists = set(other.top_artist_ids or [])
         shared_ids    = user_artists & other_artists
