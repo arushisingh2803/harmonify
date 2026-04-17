@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
 import "./style/ConcertRecommendations.css";
 
 interface Concert {

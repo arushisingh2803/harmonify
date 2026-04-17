@@ -18,7 +18,7 @@ class ConcertChatConsumer(AsyncWebsocketConsumer):
                 "timestamp": msg["timestamp"],
             }))
 
-    async def disconnect(self, close_code):
+    async def disconnect(self):
         await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
 
     async def receive(self, text_data):

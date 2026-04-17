@@ -366,3 +366,31 @@ def similar_users(request):
         "cluster_id":  profile.cluster_id,
         "matches":     matches[:10],
     })
+
+def currently_playing(request):
+    user_id = request.GET.get("user_id")
+    token   = _get_token_for_user_id(user_id) if user_id else None
+    if not token:
+        return JsonResponse({"error": "No valid session"}, status=401)
+    
+    response = requests.get(
+        "https://api.spotify.com/v1/me/player/currently-playing",
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    
+    # 204 means nothing is playing
+    if response.status_code == 204 or not response.content:
+        return JsonResponse({"playing": False})
+    
+    try:
+        data  = response.json()
+        track = data.get("item", {})
+        return JsonResponse({
+            "playing":     data.get("is_playing", False),
+            "track_name":  track.get("name", ""),
+            "artist_name": ", ".join(a["name"] for a in track.get("artists", [])),
+            "album_art":   track.get("album", {}).get("images", [{}])[0].get("url", ""),
+            "track_url":   track.get("external_urls", {}).get("spotify", ""),
+        })
+    except Exception:
+        return JsonResponse({"playing": False})
