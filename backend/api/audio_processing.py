@@ -3,6 +3,10 @@ import numpy as np
 import requests
 import tempfile
 import os
+import warnings
+
+warnings.filterwarnings("ignore", category=UserWarning, module="librosa")
+warnings.filterwarnings("ignore", category=FutureWarning, module="librosa")
 
 def extract_features_from_url(preview_url):
     audio_bytes = requests.get(preview_url).content

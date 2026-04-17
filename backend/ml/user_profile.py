@@ -11,7 +11,6 @@ from api.spotify import fetch_top_tracks, fetch_top_artists, extract_avg_audio_f
 # shared weights for feature vector construction - it is tuned to give more importance to audio features and diversity metrics.
 AUDIO_WEIGHT     = 5.0
 SPECTRAL_WEIGHT  = 3.0
-ARTIST_WEIGHT    = 1.0
 DIVERSITY_WEIGHT = 8.0
 
 # token management for user access and API calls to Spotify
@@ -42,27 +41,16 @@ def _get_access_token(user):
 # computing diversity scores directly from raw spotify genre strings
 # no parent mapping — bollywood and pop are treated as genuinely different genres
 # this preserves the distinction between niche/world music listeners and mainstream listeners
-def _compute_diversity(top_artists, top_genres):
+def _compute_diversity(top_artists, top_genres, top_tracks):
     raw = [g.lower().strip() for g in top_genres]
 
-    # genre breadth — how many unique raw genres appear across all top artists
-    # a user with 20 unique genres is more diverse than one with 3
-    # normalised against 30 as a reasonable upper bound for 20 artists x 3 genres each
+    # genre breadth — how many unique raw genres appear
     unique_genres   = len(set(raw))
     genre_diversity = min(unique_genres / 30.0, 1.0)
 
-    # genre concentration — how dominant is the single most common genre
-    # e.g. 10 out of 20 genre tags are "pop" → concentration = 0.5
-    # e.g. 18 out of 20 genre tags are "metal" → concentration = 0.9
-    if raw:
-        counts = Counter(raw)
-        genre_concentration = counts.most_common(1)[0][1] / len(raw)
-    else:
-        genre_concentration = 0.0
-
     # genre entropy — how evenly spread listening is across all genres
-    # high entropy = listener spread evenly across many genres (seeker)
-    # low entropy  = listener concentrated in 1-2 genres (formalist/guardian)
+    # replaces genre_concentration — entropy is more mathematically rigorous
+    # high entropy = seeker (spread evenly), low entropy = formalist (concentrated)
     if raw:
         counts      = Counter(raw)
         total       = len(raw)
@@ -73,40 +61,36 @@ def _compute_diversity(top_artists, top_genres):
     else:
         genre_entropy = 0.0
 
-    # artist diversity — unique raw genre count across all top artists
-    # more unique genres across artists = more eclectic artist selection
+    # artist diversity — unique genre strings across all top artists
     artist_raw_genres = set()
     for artist in top_artists:
         for g in artist.get("genres", []):
             artist_raw_genres.add(g.lower().strip())
     artist_diversity = min(len(artist_raw_genres) / 20.0, 1.0)
 
-    return genre_diversity, artist_diversity, genre_concentration, genre_entropy
+    # track artist diversity — unique artists appearing across top 20 tracks
+    # low = few artists dominate (guardian/formalist)
+    # high = many different artists in top tracks (seeker)
+    track_artist_ids = set()
+    for track in top_tracks:
+        for artist in track.get("artists", []):
+            track_artist_ids.add(artist["id"])
+    track_artist_diversity = min(len(track_artist_ids) / 20.0, 1.0)
+
+    return genre_diversity, artist_diversity, genre_entropy, track_artist_diversity
 
 
-# artists are encoded as a rank-weighted vector of size 10
-# position = rank, value = normalised rank weight
-# no hashing — avoids collision noise from hash bucketing
-def _encode_artists(top_artists, vocab_size=10):
-    vector = np.zeros(vocab_size)
-    total  = len(top_artists)
-    for rank, artist in enumerate(top_artists[:vocab_size]):
-        vector[rank] = (total - rank) / total
-    if vector.sum() > 0:
-        vector = vector / vector.sum()
-    return vector.tolist()
+# vector layout (10 dims total):
+#   [0-3]  audio scalars normalised to 0-1    × AUDIO_WEIGHT     (4)
+#   [4-5]  spectral contrast + flatness        × SPECTRAL_WEIGHT  (2)
+#   [6-9]  diversity metrics                   × DIVERSITY_WEIGHT (4)
+#           genre_diversity, artist_diversity,
+#           genre_entropy, track_artist_diversity
 
-
-# final feature vector built by combining audio features, artist encoding and raw diversity metrics
-# genre one-hot removed — raw diversity metrics capture genre identity more accurately
-# vector layout (21 dims total):
-#   [0-3]   audio scalars normalised to 0-1    × AUDIO_WEIGHT     (4)
-#   [4-5]   spectral contrast + flatness        × SPECTRAL_WEIGHT  (2)
-#   [6-15]  artist rank vector                  × ARTIST_WEIGHT    (10)
-#   [16-19] diversity (breadth, artist, conc, entropy) × DIVERSITY_WEIGHT (4)
-def _build_feature_vector(audio_features, top_genres, top_artists,
+def _build_feature_vector(audio_features, top_genres, top_artists, top_tracks,
                            genre_diversity, artist_diversity,
-                           genre_concentration, genre_entropy):
+                           genre_entropy, track_artist_diversity):
+
     # normalise audio to 0-1 before weighting — prevents scale dominance
     audio_vec = [
         (audio_features.get("tempo",    0.0) / 200.0)  * AUDIO_WEIGHT,
@@ -115,24 +99,21 @@ def _build_feature_vector(audio_features, top_genres, top_artists,
         (audio_features.get("rms",      0.0) / 0.30)   * AUDIO_WEIGHT,
     ]
 
-    # spectral features — more musically meaningful than raw MFCC for persona
+    # spectral features — more stable than MFCC when averaged across tracks
     spectral_vec = [
         audio_features.get("spectral_contrast", 0.0) * SPECTRAL_WEIGHT,
         audio_features.get("spectral_flatness", 0.0) * SPECTRAL_WEIGHT,
     ]
 
-    # ARTIST
-    artist_vec = [a * ARTIST_WEIGHT for a in _encode_artists(top_artists)]
-
-    # DIVERSITY — 4 raw metrics, no parent mapping
+    # diversity — highest weight, most discriminative for persona separation
     diversity_vec = [
-        genre_diversity     * DIVERSITY_WEIGHT,
-        artist_diversity    * DIVERSITY_WEIGHT,
-        genre_concentration * DIVERSITY_WEIGHT,
-        genre_entropy       * DIVERSITY_WEIGHT,
+        genre_diversity        * DIVERSITY_WEIGHT,
+        artist_diversity       * DIVERSITY_WEIGHT,
+        genre_entropy          * DIVERSITY_WEIGHT,
+        track_artist_diversity * DIVERSITY_WEIGHT,
     ]
 
-    return audio_vec + spectral_vec + artist_vec + diversity_vec
+    return audio_vec + spectral_vec + diversity_vec
 
 
 # main function to call all the relevant functions in order to build the user profile.
@@ -141,8 +122,9 @@ def build_user_profile(user):
 
     print(f"[user_profile] Fetching Spotify data for {user.username}...")
 
-    top_artists = fetch_top_artists(token)
-    top_tracks  = fetch_top_tracks(token)
+    top_artists  = fetch_top_artists(token, limit=20)
+    # fetch 20 tracks for audio analysis and diversity computation
+    top_tracks   = fetch_top_tracks(token, limit=20)
 
     top_artist_ids    = [a["id"]   for a in top_artists]
     top_track_ids     = [t["id"]   for t in top_tracks]
@@ -156,14 +138,14 @@ def build_user_profile(user):
     print(f"[user_profile] Extracting audio features...")
     audio_features = extract_avg_audio_features(top_tracks)
 
-    genre_diversity, artist_diversity, genre_concentration, genre_entropy = _compute_diversity(
-        top_artists, top_genres
+    genre_diversity, artist_diversity, genre_entropy, track_artist_diversity = _compute_diversity(
+        top_artists, top_genres, top_tracks
     )
 
     raw_vector = _build_feature_vector(
-        audio_features, top_genres, top_artists,
+        audio_features, top_genres, top_artists, top_tracks,
         genre_diversity, artist_diversity,
-        genre_concentration, genre_entropy
+        genre_entropy, track_artist_diversity
     )
     raw_vector_list = [float(v) for v in raw_vector]
 
@@ -192,7 +174,7 @@ def build_user_profile(user):
         classify_new_user(profile)
         print(f"[user_profile] Persona assigned: {profile.persona_type}")
     except FileNotFoundError:
-        print("[user_profile] No trained model yet ")
+        print("[user_profile] No trained model yet")
 
     return profile
 
@@ -211,8 +193,6 @@ def rebuild_vector_from_stored(user):
         "mfcc":              profile.avg_mfcc               or [],
     }
 
-    # reconstruct artist stubs with genres distributed from stored top_genres
-    # real per-artist genre data is not stored, so we approximate using stored genres
     stored_genres = profile.top_genres or []
     top_artists_stub = []
     for i, aid in enumerate(profile.top_artist_ids or []):
@@ -224,14 +204,21 @@ def rebuild_vector_from_stored(user):
             "genres": artist_genre,
         })
 
-    genre_diversity, artist_diversity, genre_concentration, genre_entropy = _compute_diversity(
-        top_artists_stub, stored_genres
+    # approximate track artist diversity from stored top artist ids
+    # real per-track artist data not stored — use unique top artists as proxy
+    top_tracks_stub = [
+        {"artists": [{"id": aid}]}
+        for aid in (profile.top_artist_ids or [])[:20]
+    ]
+
+    genre_diversity, artist_diversity, genre_entropy, track_artist_diversity = _compute_diversity(
+        top_artists_stub, stored_genres, top_tracks_stub
     )
 
     raw_vector = _build_feature_vector(
-        audio_features, stored_genres, top_artists_stub,
+        audio_features, stored_genres, top_artists_stub, top_tracks_stub,
         genre_diversity, artist_diversity,
-        genre_concentration, genre_entropy
+        genre_entropy, track_artist_diversity
     )
 
     profile.feature_vector         = [float(v) for v in raw_vector]
@@ -239,44 +226,42 @@ def rebuild_vector_from_stored(user):
     profile.artist_diversity_score = artist_diversity
     profile.save()
 
-    print(f"[rebuild] {user.username} — gdiv={genre_diversity:.2f}, adiv={artist_diversity:.2f}, conc={genre_concentration:.2f}, ent={genre_entropy:.2f}")
+    print(f"[rebuild] {user.username} — gdiv={genre_diversity:.2f}, adiv={artist_diversity:.2f}, ent={genre_entropy:.2f}, tad={track_artist_diversity:.2f}")
     return profile
 
 
 PERSONA_DEFINITIONS = [
     {"name": "The Seeker",    "tags": ["eclectic", "adventurous", "genre-fluid"],
-     "dominant": {"genre_diversity": "high", "genre_concentration": "low"}},
+     "dominant": {"genre_diversity": "high", "genre_entropy": "high", "track_artist_diversity": "high"}},
     {"name": "The Guardian",  "tags": ["refined", "consistent", "deep-cuts"],
-     "dominant": {"artist_diversity": "low", "genre_diversity": "low"}},
+     "dominant": {"artist_diversity": "low", "genre_diversity": "low", "track_artist_diversity": "low"}},
     {"name": "The Zealous",   "tags": ["high-energy", "bass-heavy", "intense"],
      "dominant": {"tempo": "high", "rms": "high"}},
     {"name": "The Wistful",   "tags": ["mellow", "sentimental", "slow-burn"],
      "dominant": {"tempo": "low", "rms": "low"}},
     {"name": "The Formalist", "tags": ["genre-loyal", "deep-listener", "niche"],
-     "dominant": {"genre_concentration": "high", "artist_diversity": "high"}},
+     "dominant": {"genre_entropy": "low", "genre_diversity": "low", "track_artist_diversity": "low"}},
 ]
 
-FEAT_TEMPO        = 0
-FEAT_RMS          = 3
-FEAT_GENRE_DIV    = -4
-FEAT_ARTIST_DIV   = -3
-FEAT_GENRE_CONC   = -2
-FEAT_GENRE_ENT    = -1
-
+FEAT_TEMPO             = 0
+FEAT_RMS               = 3
+FEAT_GENRE_DIV         = -4
+FEAT_ARTIST_DIV        = -3
+FEAT_GENRE_ENT         = -2
+FEAT_TRACK_ARTIST_DIV  = -1
 
 def _rank_centroid(vec):
     def level(v, low=-1.0, high=1.0):
         if v < low:  return "low"
         if v > high: return "high"
         return "mid"
-
     return {
-        "tempo":               level(vec[FEAT_TEMPO]),
-        "rms":                 level(vec[FEAT_RMS]),
-        "genre_diversity":     level(vec[FEAT_GENRE_DIV]),
-        "artist_diversity":    level(vec[FEAT_ARTIST_DIV]),
-        "genre_concentration": level(vec[FEAT_GENRE_CONC]),
-        "genre_entropy":       level(vec[FEAT_GENRE_ENT]),
+        "tempo":                  level(vec[FEAT_TEMPO]),
+        "rms":                    level(vec[FEAT_RMS]),
+        "genre_diversity":        level(vec[FEAT_GENRE_DIV]),
+        "artist_diversity":       level(vec[FEAT_ARTIST_DIV]),
+        "genre_entropy":          level(vec[FEAT_GENRE_ENT]),
+        "track_artist_diversity": level(vec[FEAT_TRACK_ARTIST_DIV]),
     }
 
 

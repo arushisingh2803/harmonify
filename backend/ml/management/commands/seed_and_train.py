@@ -13,7 +13,6 @@ from ml.user_profile import (
     PERSONA_DEFINITIONS,
     AUDIO_WEIGHT,
     SPECTRAL_WEIGHT,
-    ARTIST_WEIGHT,
     DIVERSITY_WEIGHT,
     _rank_centroid,
     _best_persona_for_centroid,
@@ -36,10 +35,10 @@ ARCHETYPES = [
             "spectral_flatness": lambda: random.uniform(0.08, 0.18),
         },
         "diversity": lambda: (
-            random.uniform(0.65, 0.95),
-            random.uniform(0.60, 0.90),
-            random.uniform(0.05, 0.18),
-            random.uniform(0.75, 0.95),
+            random.uniform(0.65, 0.95),   # genre diversity — high
+            random.uniform(0.60, 0.90),   # artist diversity — high
+            random.uniform(0.75, 0.95),   # genre entropy — high
+            random.uniform(0.70, 0.95),   # track artist diversity — high
         ),
     },
     {
@@ -54,10 +53,10 @@ ARCHETYPES = [
             "spectral_flatness": lambda: random.uniform(0.07, 0.16),
         },
         "diversity": lambda: (
-            random.uniform(0.10, 0.30),
-            random.uniform(0.15, 0.40),
-            random.uniform(0.45, 0.70),
-            random.uniform(0.35, 0.60),
+            random.uniform(0.10, 0.30),   # genre diversity — low
+            random.uniform(0.15, 0.40),   # artist diversity — low
+            random.uniform(0.35, 0.60),   # genre entropy — medium
+            random.uniform(0.20, 0.45),   # track artist diversity — low
         ),
     },
     {
@@ -74,8 +73,8 @@ ARCHETYPES = [
         "diversity": lambda: (
             random.uniform(0.30, 0.55),
             random.uniform(0.45, 0.70),
-            random.uniform(0.32, 0.52),
             random.uniform(0.50, 0.72),
+            random.uniform(0.40, 0.65),
         ),
     },
     {
@@ -92,8 +91,8 @@ ARCHETYPES = [
         "diversity": lambda: (
             random.uniform(0.25, 0.50),
             random.uniform(0.20, 0.42),
-            random.uniform(0.40, 0.62),
             random.uniform(0.52, 0.72),
+            random.uniform(0.30, 0.55),
         ),
     },
     {
@@ -108,10 +107,10 @@ ARCHETYPES = [
             "spectral_flatness": lambda: random.uniform(0.02, 0.06),
         },
         "diversity": lambda: (
-            random.uniform(0.02, 0.10),
-            random.uniform(0.80, 0.99),
-            random.uniform(0.85, 0.99),
-            random.uniform(0.00, 0.12),
+            random.uniform(0.02, 0.10),   # genre diversity — very low
+            random.uniform(0.80, 0.99),   # artist diversity — high within genre
+            random.uniform(0.00, 0.12),   # genre entropy — very low
+            random.uniform(0.05, 0.20),   # track artist diversity — very low
         ),
     },
 ]
@@ -140,24 +139,18 @@ def _make_feature_vector(archetype):
         a["spectral_flatness"]() * SPECTRAL_WEIGHT,
     ]
 
-    # deterministic artist rank vector per archetype
-    artist_vec = np.zeros(10)
-    for i in range(10):
-        artist_vec[i] = (10 - i) / 10
-    if artist_vec.sum() > 0:
-        artist_vec = artist_vec / artist_vec.sum()
-    artist_vec = (artist_vec * ARTIST_WEIGHT).tolist()
-
-    # 4 diversity values — gdiv, adiv, gconc, gentropy
-    gd, ad, gc, ge = archetype["diversity"]()
+    # 4 diversity values — gdiv, adiv, gentropy, track_artist_div
+    # concentration removed — redundant with entropy
+    # artist rank vector removed — replaced by track_artist_diversity
+    gd, ad, ge, tad = archetype["diversity"]()
     diversity_vec = [
-        gd * DIVERSITY_WEIGHT,
-        ad * DIVERSITY_WEIGHT,
-        gc * DIVERSITY_WEIGHT,
-        ge * DIVERSITY_WEIGHT,
+        gd  * DIVERSITY_WEIGHT,
+        ad  * DIVERSITY_WEIGHT,
+        ge  * DIVERSITY_WEIGHT,
+        tad * DIVERSITY_WEIGHT,
     ]
 
-    return audio_vec + spectral_vec + artist_vec + diversity_vec
+    return audio_vec + spectral_vec + diversity_vec
 
 
 class Command(BaseCommand):
@@ -189,7 +182,7 @@ class Command(BaseCommand):
                     centroid = a["centroid"]()
                     zcr     = a["zcr"]()
                     rms     = a["rms"]()
-                    gd, ad, gc, ge = archetype["diversity"]()
+                    gd, ad, ge, tad = archetype["diversity"]()
 
                     persona_name = ARCHETYPE_TO_PERSONA[archetype["name"]]
                     definition   = next(

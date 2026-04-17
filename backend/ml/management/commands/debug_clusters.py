@@ -120,7 +120,7 @@ class Command(BaseCommand):
                 self.stdout.write(f"\nDimension-wise gap (real - synthetic mean):")
                 gap = real_vecs.mean(axis=0) - synth_vecs.mean(axis=0)
                 self.stdout.write(f"  first 6:       {gap[:6].round(3)}")
-                self.stdout.write(f"  last 4 (diversity — gdiv, adiv, conc, entropy): {gap[-4:].round(3)}")
+                self.stdout.write(f"  last 4 (diversity — gdiv, adiv, entropy, track_artist_div): {gap[-4:].round(3)}")
                 self.stdout.write(f"\nLargest gaps (dim index: gap value):")
                 top_gaps = np.argsort(np.abs(gap))[::-1][:8]
                 for idx in top_gaps:
@@ -133,6 +133,6 @@ class Command(BaseCommand):
                     elif idx == 5: label = "(spectral_flatness)"
                     elif idx == scaler.n_features_in_ - 4: label = "(genre_diversity)"
                     elif idx == scaler.n_features_in_ - 3: label = "(artist_diversity)"
-                    elif idx == scaler.n_features_in_ - 2: label = "(genre_concentration)"
-                    elif idx == scaler.n_features_in_ - 1: label = "(genre_entropy)"
+                    elif idx == scaler.n_features_in_ - 2: label = "(genre_entropy)"
+                    elif idx == scaler.n_features_in_ - 1: label = "(track_artist_diversity)"
                     self.stdout.write(f"  dim {idx} {label}: {gap[idx]:.3f}")
