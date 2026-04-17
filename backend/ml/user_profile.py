@@ -87,7 +87,8 @@ def _compute_diversity(top_artists, top_genres, top_tracks):
 #           genre_diversity, artist_diversity,
 #           genre_entropy, track_artist_diversity
 
-def _build_feature_vector(audio_features, genre_diversity, artist_diversity,
+def _build_feature_vector(audio_features, top_genres, top_artists, top_tracks,
+                           genre_diversity, artist_diversity,
                            genre_entropy, track_artist_diversity):
 
     # normalise audio to 0-1 before weighting — prevents scale dominance
@@ -217,7 +218,7 @@ def rebuild_vector_from_stored(user):
     raw_vector = _build_feature_vector(
         audio_features, stored_genres, top_artists_stub, top_tracks_stub,
         genre_diversity, artist_diversity,
-        genre_entropy, track_artist_diversity
+        genre_entropy, track_artist_diversity,
     )
 
     profile.feature_vector         = [float(v) for v in raw_vector]
