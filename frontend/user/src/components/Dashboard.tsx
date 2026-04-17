@@ -242,11 +242,10 @@ export default function Dashboard() {
             />
           </div>
         )}
+        {activeTab === "matches" && (
+          <SimilarUsers userId={userId ?? ""} />
+        )}
       </div>
-
-      {activeTab === "matches" && (
-        <SimilarUsers userId={userId ?? ""} />
-      )}
 
     </div>
   );
