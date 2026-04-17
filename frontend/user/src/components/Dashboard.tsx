@@ -5,22 +5,23 @@ import { FaHome, FaMusic, FaUsers } from "react-icons/fa";
 import "./style/Dashboard.css";
 import AudioProfileChart from "./AudioProfileChart.tsx";
 import ConcertRecommendations from "./ConcertRecommendations.tsx";
-import SimilarUsers from "./SimilarUsers.tsx"
+import SimilarUsers from "./SimilarUsers.tsx";
 
 export default function Dashboard() {
   const { search } = useLocation();
-  const params = new URLSearchParams(search);
-  const userId = params.get("user_id");
+  const params      = new URLSearchParams(search);
+  const userId      = params.get("user_id");
 
-  const [profile, setProfile]       = useState<any>(null);
-  const [topTracks, setTopTracks]   = useState<any[]>([]);
-  const [topArtists, setTopArtists] = useState<any[]>([]);
-  const [avgFeatures, setAvgFeatures] = useState<any>(null);
-  const [loading, setLoading]       = useState(false);
-  const [timeRange, setTimeRange]   = useState<"short_term" | "medium_term" | "long_term">("long_term");
-  const [activeTab, setActiveTab]   = useState<"dashboard" | "concerts" | "matches">("dashboard");
-  const [musicView, setMusicView]   = useState<"tracks" | "artists">("tracks");
+  const [profile, setProfile]           = useState<any>(null);
+  const [topTracks, setTopTracks]       = useState<any[]>([]);
+  const [topArtists, setTopArtists]     = useState<any[]>([]);
+  const [avgFeatures, setAvgFeatures]   = useState<any>(null);
+  const [loading, setLoading]           = useState(false);
+  const [timeRange, setTimeRange]       = useState<"short_term" | "medium_term" | "long_term">("long_term");
+  const [activeTab, setActiveTab]       = useState<"dashboard" | "concerts" | "matches">("dashboard");
+  const [musicView, setMusicView]       = useState<"tracks" | "artists">("tracks");
   const [activeConcertId, setActiveConcertId] = useState<string | null>(null);
+  const [nowPlaying, setNowPlaying]     = useState<any>(null);
 
   useEffect(() => {
     if (userId) localStorage.setItem("harmonify_user_id", userId);
@@ -31,6 +32,21 @@ export default function Dashboard() {
       localStorage.setItem("spotify_username", profile.display_name);
     }
   }, [profile]);
+
+  // fetch now playing and poll every 30 seconds
+  useEffect(() => {
+    if (!userId) return;
+
+    const fetchNowPlaying = () => {
+      axios.get(`http://localhost:8000/currently-playing/?user_id=${userId}`)
+        .then(res => setNowPlaying(res.data))
+        .catch(() => setNowPlaying(null));
+    };
+
+    fetchNowPlaying();
+    const interval = setInterval(fetchNowPlaying, 30000);
+    return () => clearInterval(interval);
+  }, [userId]);
 
   useEffect(() => {
     if (!userId) return;
@@ -43,7 +59,7 @@ export default function Dashboard() {
     axios.get(`http://localhost:8000/top-tracks-with-snippets/?user_id=${userId}&time_range=${timeRange}`)
       .then(res => {
         const data = res.data;
-        if (data.tracks)          setTopTracks(data.tracks.slice(0, 10));
+        if (data.tracks)           setTopTracks(data.tracks.slice(0, 10));
         if (data.average_features) setAvgFeatures(data.average_features);
       })
       .catch(console.error)
@@ -64,6 +80,8 @@ export default function Dashboard() {
     long_term:   "All Time",
   };
 
+  const firstName = profile.display_name?.split(" ")[0] || profile.display_name;
+
   return (
     <div className="dashboard-page">
 
@@ -82,126 +100,148 @@ export default function Dashboard() {
 
       {/* Main content */}
       <div className="dashboard-content">
-      {activeTab === "dashboard" && (
-        <div className="main-layout">
+        {activeTab === "dashboard" && (
+          <div className="main-layout">
 
-          {/* Left Column */}
-          <div className="left-column">
+            {/* Left Column */}
+            <div className="left-column">
 
-            {/* Profile */}
-            <div className="card profile-card">
-              <img src={profile.images?.[0]?.url} alt="Profile" />
-              <div>
-                <h3>{profile.display_name}</h3>
-                <small style={{ color: "#999", fontSize: "0.75rem" }}>Spotify Profile</small>
+              {/* Profile header */}
+              <div className="card profile-card">
+                <img
+                  src={profile.images?.[0]?.url}
+                  alt="Profile"
+                  className="profile-avatar"
+                />
+                <div className="profile-info">
+                  <p className="profile-greeting">hey there,</p>
+                  <h2 className="profile-name">{firstName}</h2>
+                </div>
+
+                {/* Now playing — inline in profile card */}
+                {nowPlaying?.playing && (
+                  <a
+                    href={nowPlaying.track_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="now-playing"
+                  >
+                    <img
+                      src={nowPlaying.album_art}
+                      alt={nowPlaying.track_name}
+                      className="now-playing-art"
+                    />
+                    <div className="now-playing-info">
+                      <span className="now-playing-label">now playing</span>
+                      <span className="now-playing-track">{nowPlaying.track_name}</span>
+                      <span className="now-playing-artist">{nowPlaying.artist_name}</span>
+                    </div>
+                    <div className="now-playing-bars">
+                      <span/><span/><span/>
+                    </div>
+                </a>
+                )}
               </div>
-            </div>
 
-            {/* Music card */}
-            {loading ? (
-              <div className="card" style={{ alignItems: "center", justifyContent: "center", padding: "2rem" }}>
-                <p style={{ color: "#aaa", margin: 0 }}>Loading your music data…</p>
-              </div>
-            ) : (
-              <div className="card music-card">
+              {/* Music card */}
+              {loading ? (
+                <div className="card" style={{ alignItems: "center", justifyContent: "center", padding: "2rem" }}>
+                  <p style={{ color: "#aaa", margin: 0 }}>Loading your music data…</p>
+                </div>
+              ) : (
+                <div className="card music-card">
 
-                {/* Time range */}
-                <div className="time-range">
-                  <strong>Time Range:</strong>
-                  {(["short_term", "medium_term", "long_term"] as const).map(range => (
+                  {/* Time range */}
+                  <div className="time-range">
+                    <strong>Time Range:</strong>
+                    {(["short_term", "medium_term", "long_term"] as const).map(range => (
+                      <button
+                        key={range}
+                        className={`range-btn ${timeRange === range ? "active" : ""}`}
+                        onClick={() => setTimeRange(range)}
+                      >
+                        {timeRangeLabels[range]}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Toggle */}
+                  <div className="music-toggle">
                     <button
-                      key={range}
-                      className={timeRange === range ? "active" : ""}
-                      onClick={() => setTimeRange(range)}
+                      className={`toggle-btn ${musicView === "tracks" ? "active" : ""}`}
+                      onClick={() => setMusicView("tracks")}
                     >
-                      {timeRangeLabels[range]}
+                      Top Tracks
                     </button>
-                  ))}
-                </div>
+                    <button
+                      className={`toggle-btn ${musicView === "artists" ? "active" : ""}`}
+                      onClick={() => setMusicView("artists")}
+                    >
+                      Top Artists
+                    </button>
+                  </div>
 
-                {/* Toggle */}
-                <div className="music-toggle">
-                  <button
-                    className={musicView === "tracks" ? "active" : ""}
-                    onClick={() => setMusicView("tracks")}
-                  >
-                    Top Tracks
-                  </button>
-                  <button
-                    className={musicView === "artists" ? "active" : ""}
-                    onClick={() => setMusicView("artists")}
-                  >
-                    Top Artists
-                  </button>
-                </div>
+                  {/* Tracks */}
+                  {musicView === "tracks" && (
+                    <ul className="music-list">
+                      {topTracks.map((t: any, idx: number) => {
+                        const track = t.spotify_track;
+                        return (
+                          <li key={track.id}>
+                            <span className="music-rank">{idx + 1}</span>
+                            <img src={track.album.images?.[2]?.url} alt={track.name} />
+                            <div>
+                              <strong>{track.name}</strong>
+                              <small>{track.artists.map((a: any) => a.name).join(", ")}</small>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
 
-                {/* Tracks */}
-                {musicView === "tracks" && (
-                  <ul className="music-list">
-                    {topTracks.map((t: any, idx: number) => {
-                      const track = t.spotify_track;
-                      return (
-                        <li key={track.id}>
+                  {/* Artists */}
+                  {musicView === "artists" && (
+                    <ul className="music-list">
+                      {topArtists.map((a: any, idx: number) => (
+                        <li key={a.id}>
                           <span className="music-rank">{idx + 1}</span>
-                          <img src={track.album.images?.[2]?.url} alt={track.name} />
+                          <img src={a.images?.[2]?.url} alt={a.name} className="artist-img" />
                           <div>
-                            <strong>{track.name}</strong>
-                            <small>{track.artists.map((a: any) => a.name).join(", ")}</small>
+                            <strong>{a.name}</strong>
+                            <small>Popularity: {a.popularity}</small>
                           </div>
                         </li>
-                      );
-                    })}
-                  </ul>
-                )}
+                      ))}
+                    </ul>
+                  )}
 
-                {/* Artists */}
-                {musicView === "artists" && (
-                  <ul className="music-list">
-                    {topArtists.map((a: any, idx: number) => (
-                      <li key={a.id}>
-                        <span className="music-rank">{idx + 1}</span>
-                        <img
-                          src={a.images?.[2]?.url}
-                          alt={a.name}
-                          className="artist-img"
-                        />
-                        <div>
-                          <strong>{a.name}</strong>
-                          <small>
-                            {`Popularity: ${a.popularity}`}
-                          </small>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
+                </div>
+              )}
+            </div>
 
+            {/* Right Column */}
+            {avgFeatures && (
+              <div className="right-column card chart-card">
+                <h4 style={{ margin: "0 0 0.5rem", fontSize: "0.9rem", fontWeight: 700, color: "#1a1a2e" }}>
+                  Your Audio Profile
+                </h4>
+                <AudioProfileChart avg={avgFeatures} userId={userId ?? undefined} />
               </div>
             )}
+
           </div>
+        )}
 
-          {/* Right Column */}
-          {avgFeatures && (
-            <div className="right-column card chart-card">
-              <h4 style={{ margin: "0 0 0.5rem", fontSize: "0.9rem", fontWeight: 700, color: "#1a1a2e" }}>
-                Your Audio Profile
-              </h4>
-              <AudioProfileChart avg={avgFeatures} userId={userId ?? undefined} />
-            </div>
-          )}
-
-        </div>
-      )}
-
-      {activeTab === "concerts" && (
-        <div className="card">
-          <ConcertRecommendations
-            activeConcertId={activeConcertId}
-            onJoinChat={(id) => setActiveConcertId(id)}
-            onCloseChat={() => setActiveConcertId(null)}
-          />
-        </div>
-      )}
+        {activeTab === "concerts" && (
+          <div className="card">
+            <ConcertRecommendations
+              activeConcertId={activeConcertId}
+              onJoinChat={(id) => setActiveConcertId(id)}
+              onCloseChat={() => setActiveConcertId(null)}
+            />
+          </div>
+        )}
       </div>
 
       {activeTab === "matches" && (

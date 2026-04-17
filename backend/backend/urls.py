@@ -15,4 +15,5 @@ urlpatterns = [
     path("concerts-recommendations/", views.concerts_recommendations),
     path('user-persona/', views.user_persona),
     path('similar-users/', views.similar_users),
+    path("currently-playing/", views.currently_playing),
 ]

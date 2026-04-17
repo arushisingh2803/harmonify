@@ -29,7 +29,7 @@ CLIENT_ID = settings.SPOTIFY_CLIENT_ID
 CLIENT_SECRET = settings.SPOTIFY_CLIENT_SECRET
 REDIRECT_URI = settings.SPOTIFY_REDIRECT_URI
 TICKETMASTER_API_KEY = settings.TICKETMASTER_API_KEY
-SCOPES = "user-read-private user-read-email user-top-read"
+SCOPES = "user-read-private user-read-email user-top-read user-read-currently-playing"
 
 # fetches valid access token, returns None if no valid token found, fetches new token if expired
 def _get_token_for_user_id(user_id):
