@@ -20,6 +20,7 @@ export default function Dashboard() {
   const [timeRange, setTimeRange]   = useState<"short_term" | "medium_term" | "long_term">("long_term");
   const [activeTab, setActiveTab]   = useState<"dashboard" | "concerts" | "matches">("dashboard");
   const [musicView, setMusicView]   = useState<"tracks" | "artists">("tracks");
+  const [activeConcertId, setActiveConcertId] = useState<string | null>(null);
 
   useEffect(() => {
     if (userId) localStorage.setItem("harmonify_user_id", userId);
@@ -192,11 +193,15 @@ export default function Dashboard() {
         </div>
       )}
 
-        {activeTab === "concerts" && (
-          <div className="card">
-            <ConcertRecommendations />
-          </div>
-        )}
+      {activeTab === "concerts" && (
+        <div className="card">
+          <ConcertRecommendations
+            activeConcertId={activeConcertId}
+            onJoinChat={(id) => setActiveConcertId(id)}
+            onCloseChat={() => setActiveConcertId(null)}
+          />
+        </div>
+      )}
       </div>
 
       {activeTab === "matches" && (

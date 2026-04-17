@@ -182,14 +182,14 @@ def extract_features(request):
 
 # endpoint for concert recommendations based on top artists
 def concerts_recommendations(request):
-    user_id = request.GET.get("user_id")
-    token = _get_token_for_user_id(user_id) if user_id else request.GET.get("token")
+    user_id    = request.GET.get("user_id")
+    token      = _get_token_for_user_id(user_id) if user_id else request.GET.get("token")
     time_range = request.GET.get("time_range", "long_term")
 
     if not token:
         return JsonResponse({"error": "No valid session"}, status=401)
 
-    artists = fetch_top_artists(token, time_range, limit=20)
+    artists  = fetch_top_artists(token, time_range, limit=20)
     concerts = []
 
     for artist in artists:
@@ -197,33 +197,48 @@ def concerts_recommendations(request):
         tm_response = requests.get(
             "https://app.ticketmaster.com/discovery/v2/events.json",
             params={
-                "keyword": artist_name,
+                "keyword":            artist_name,
                 "classificationName": "music",
-                "countryCode": "IE",
-                "size": 3,
-                "apikey": TICKETMASTER_API_KEY
+                "countryCode":        "IE",
+                "size":               3,
+                "apikey":             TICKETMASTER_API_KEY,
             }
         )
         events = tm_response.json().get("_embedded", {}).get("events", [])
 
         for event in events:
-            venue = event["_embedded"]["venues"][0]
-            date = event["dates"]["start"].get("localDate")
+            venue           = event["_embedded"]["venues"][0]
+            date            = event["dates"]["start"].get("localDate")
+            ticketmaster_id = event.get("id", "")
+
+            images    = event.get("images", [])
+            image_url = ""
+            if images:
+                preferred = [
+                    img for img in images
+                    if img.get("ratio") == "16_9" and img.get("width", 0) >= 640
+                ]
+                image_url = preferred[0]["url"] if preferred else images[0]["url"]
 
             concert_obj, _ = Concert.objects.get_or_create(
-                spotify_artist_id=artist["id"],
-                artist_name=artist_name,
-                venue=venue["name"],
-                date=date
+                ticketmaster_id=ticketmaster_id,
+                defaults={
+                    "spotify_artist_id": artist["id"],
+                    "artist_name":       artist_name,
+                    "venue":             venue["name"],
+                    "date":              date,
+                }
             )
             concerts.append({
-                "id": concert_obj.id,
-                "artist": artist_name,
-                "event_name": event["name"],
-                "venue": venue["name"],
-                "city": venue["city"]["name"],
-                "date": date,
-                "url": event.get("url")
+                "id":               concert_obj.id,
+                "artist":           artist_name,
+                "event_name":       event["name"],
+                "venue":            venue["name"],
+                "city":             venue["city"]["name"],
+                "date":             date,
+                "url":              event.get("url"),
+                "image_url":        image_url,
+                "ticketmaster_id":  ticketmaster_id,
             })
 
     return JsonResponse({"time_range": time_range, "concerts": concerts})

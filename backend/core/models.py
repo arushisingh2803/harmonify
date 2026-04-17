@@ -4,9 +4,10 @@ from django.utils import timezone
 
 class Concert(models.Model):
     spotify_artist_id = models.CharField(max_length=100)
-    artist_name = models.CharField(max_length=255)
-    venue = models.CharField(max_length=255)
-    date = models.DateField()
+    artist_name       = models.CharField(max_length=255)
+    venue             = models.CharField(max_length=255)
+    date              = models.DateField()
+    ticketmaster_id   = models.CharField(max_length=255, blank=True, default="")
 
     def __str__(self):
         return f"{self.artist_name} @ {self.venue}"
