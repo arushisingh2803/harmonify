@@ -345,10 +345,16 @@ def similar_users(request):
         # clamp distance to a sensible range then invert
         match_pct = max(0, min(100, round(100 - (distance / 8) * 100)))
 
+        display_name = other.user.username
+        try:
+            display_name = other.user.spotify_token.display_name or other.user.username
+        except Exception:
+            pass
+
         matches.append({
             "user_id":            other.user.id,
-            "display_name":       other.user.username,
-            "persona_type":       other.persona_type or "",
+            "display_name":       display_name,
+            "persona_type":       profile.persona_type or "",
             "persona_tags":       other.persona_tags or [],
             "shared_genres":      shared_genres,
             "shared_artists":     shared_artists,

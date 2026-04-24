@@ -13,8 +13,9 @@ class ConcertChatConsumer(AsyncWebsocketConsumer):
         history = await self.get_message_history()
         for msg in history:
             await self.send(text_data=json.dumps({
-                "message":  msg["content"],
-                "username": msg["username"],
+                "message":   msg["content"],
+                "username":  msg["username"],
+                "user_id":   msg["user_id"],
                 "timestamp": msg["timestamp"],
             }))
 
@@ -36,6 +37,7 @@ class ConcertChatConsumer(AsyncWebsocketConsumer):
                 "type":     "chat_message",
                 "message":  message,
                 "username": username,
+                "user_id":  str(user_id),
             }
         )
 
@@ -43,6 +45,7 @@ class ConcertChatConsumer(AsyncWebsocketConsumer):
         await self.send(text_data=json.dumps({
             "message":  event["message"],
             "username": event["username"],
+            "user_id":  event.get("user_id", ""),
         }))
 
     @database_sync_to_async
@@ -59,7 +62,8 @@ class ConcertChatConsumer(AsyncWebsocketConsumer):
             return [
                 {
                     "content":   m.content,
-                    "username":  m.user.username,
+                    "username":  m.user.spotify_token.display_name if hasattr(m.user, "spotify_token") else m.user.username,
+                    "user_id":   str(m.user.id),
                     "timestamp": m.timestamp.isoformat(),
                 }
                 for m in messages

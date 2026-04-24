@@ -223,7 +223,7 @@ export default function Dashboard() {
             {/* Right Column */}
             {avgFeatures && (
               <div className="right-column card chart-card">
-                <h4 style={{ margin: "0 0 0.5rem", fontSize: "0.9rem", fontWeight: 700, color: "#1a1a2e" }}>
+                <h4 style={{ margin: "0 0 0.5rem", fontSize: "1.5rem", fontWeight: 700, color: "#1a1a2e" }}>
                   Your Audio Profile
                 </h4>
                 <AudioProfileChart avg={avgFeatures} userId={userId ?? undefined} />

@@ -26,7 +26,7 @@
 .similar-users-header h2 {
   margin: 0;
   font-size: 1.5rem;
-  font-weight: 800;
+  font-weight: 700;
   color: #1a1a2e;
   font-family: 'Lato', sans-serif;
 }
@@ -68,11 +68,82 @@
   color: #aaa;
 }
 
+.match-name-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
 .match-name {
   margin: 2px 0 0;
   font-size: 1rem;
   font-weight: 800;
   color: #1a1a2e;
+}
+
+.copy-btn {
+  background: none;
+  border: 1px solid #e8e8e8;
+  border-radius: 6px;
+  padding: 0.1rem 0.35rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+  color: #aaa;
+  line-height: 1;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.copy-btn:hover {
+  border-color: #a37cd9;
+  color: #a37cd9;
+}
+
+.info-tip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  margin-top: 2px;
+}
+
+.info-icon {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  border: 1.5px solid #ccc;
+  color: #bbb;
+  font-size: 0.6rem;
+  font-weight: 700;
+  font-style: normal;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: default;
+  flex-shrink: 0;
+  font-family: 'Lato', sans-serif;
+}
+
+.info-tooltip {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1a1a2e;
+  color: white;
+  font-size: 0.7rem;
+  padding: 0.35rem 0.6rem;
+  border-radius: 6px;
+  white-space: nowrap;
+  pointer-events: none;
+  font-family: 'Lato', sans-serif;
+  z-index: 10;
+}
+
+.info-tip:hover .info-tooltip {
+  display: block;
 }
 
 .match-badge {

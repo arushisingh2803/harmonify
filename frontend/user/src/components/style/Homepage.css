@@ -9,7 +9,8 @@ body {
   overflow: hidden;
 }
 
-h1, h2, h3, h4, h5, h6 {
+.homepage h1, .homepage h2, .homepage h3,
+.homepage h4, .homepage h5, .homepage h6 {
   font-family: 'Roboto Slab', serif;
 }
 

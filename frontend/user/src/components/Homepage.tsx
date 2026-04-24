@@ -33,9 +33,9 @@ export default function Homepage() {
       const midY = h / 2;
 
       const waves = [
-        { amp: 55, freq: 0.008, speed: 0.01, color: "rgba(80,80,80,1)",   lineWidth: 2.5 },
-        { amp: 35, freq: 0.013, speed: 0.05, color: "rgba(80,80,80,0.5)", lineWidth: 1.5 },
-        { amp: 20, freq: 0.022, speed: 0.09, color: "rgba(80,80,80,0.3)", lineWidth: 1   },
+        { amp: 54, freq: 0.008, speed: 0.001, color: "rgba(80,80,80,1)",   lineWidth: 2.5 },
+        { amp: 34, freq: 0.013, speed: 0.005, color: "rgba(80,80,80,0.5)", lineWidth: 2 },
+        { amp: 24, freq: 0.022, speed: 0.009, color: "rgba(80,80,80,0.3)", lineWidth: 1.5   },
       ];
 
       waves.forEach(({ amp, freq, speed, color, lineWidth }) => {
@@ -48,8 +48,8 @@ export default function Homepage() {
         for (let x = 0; x <= w; x += 2) {
           const y =
             midY +
-            amp * Math.sin(freq * x + t * speed * 60) +
-            (amp * 0.4) * Math.sin(freq * 1.7 * x + t * speed * 40 + 1.2);
+            amp * Math.sin(freq * x + t * speed * 12) +
+            (amp * 0.4) * Math.sin(freq * 1.7 * x + t * speed * 8 + 1.2);
 
           if (x === 0) ctx.moveTo(x, y);
           else ctx.lineTo(x, y);

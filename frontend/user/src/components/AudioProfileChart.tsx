@@ -242,6 +242,14 @@ function PersonaShape({ personaType, accent }: { personaType: string; accent: st
   );
 }
 
+const ALL_PERSONAS = [
+  { name: "The Seeker",    accent: "#3B82F6", tags: ["eclectic", "adventurous", "genre-fluid"], description: "Roams across genres, always chasing something new." },
+  { name: "The Guardian",  accent: "#6366f1", tags: ["refined", "consistent", "deep-cuts"],     description: "Protects what matters — taste is identity." },
+  { name: "The Zealous",   accent: "#f97316", tags: ["high-energy", "bass-heavy", "intense"],   description: "High tempo, high intensity — music as fuel." },
+  { name: "The Wistful",   accent: "#fb923c", tags: ["mellow", "sentimental", "slow-burn"],     description: "Finds comfort in sounds that carry memory." },
+  { name: "The Formalist", accent: "#14b8a6", tags: ["genre-loyal", "deep-listener", "niche"],  description: "One genre. Total mastery. No compromises." },
+];
+
 // main component
 export default function AudioProfileChart({
   avg,
@@ -251,6 +259,7 @@ export default function AudioProfileChart({
   userId?: string;
 }) {
   const [persona, setPersona] = useState<PersonaData | null>(null);
+  const [showPersonaInfo, setShowPersonaInfo] = useState(false);
 
   useEffect(() => {
     if (!userId) return;
@@ -279,16 +288,95 @@ export default function AudioProfileChart({
           padding: "1.25rem", borderRadius: "16px",
           background: `linear-gradient(135deg, ${visual.gradient[0]}18, ${visual.gradient[1]}10)`,
           border: `1.5px solid ${visual.accent}30`,
+          position: "relative",
         }}>
           <PersonaShape personaType={persona.persona_type} accent={visual.accent}/>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{
-              margin: "0 0 2px", fontSize: "0.65rem", fontWeight: 700,
-              letterSpacing: "0.1em", textTransform: "uppercase",
-              color: visual.accent, fontFamily: "'Lato', sans-serif",
-            }}>
-              Your Music Persona
-            </p>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", marginBottom: "2px" }}>
+              <p style={{
+                margin: 0, fontSize: "0.65rem", fontWeight: 700,
+                letterSpacing: "0.1em", textTransform: "uppercase",
+                color: visual.accent, fontFamily: "'Lato', sans-serif",
+              }}>
+                Your Music Persona
+              </p>
+              <button
+                onClick={() => setShowPersonaInfo(v => !v)}
+                title="See all personas"
+                style={{
+                  width: 16, height: 16, borderRadius: "50%",
+                  border: `1.5px solid ${visual.accent}60`,
+                  background: "none", color: visual.accent,
+                  fontSize: "0.6rem", fontWeight: 700,
+                  cursor: "pointer", display: "flex",
+                  alignItems: "center", justifyContent: "center",
+                  padding: 0, flexShrink: 0, fontFamily: "'Lato', sans-serif",
+                  lineHeight: 1,
+                }}
+              >
+                i
+              </button>
+            </div>
+
+            {/* Persona info popover */}
+            {showPersonaInfo && (
+              <div style={{
+                position: "absolute", zIndex: 50,
+                top: "calc(100% + 10px)", left: 0, right: 0,
+                background: "white", borderRadius: "16px",
+                padding: "0.9rem 0.75rem 0.85rem",
+                boxShadow: "0 12px 40px rgba(0,0,0,0.14)",
+                border: "1px solid #ececec",
+              }}>
+                <p style={{
+                  margin: "0 0 0.9rem", fontSize: "0.6rem", fontWeight: 700,
+                  letterSpacing: "0.1em", textTransform: "uppercase",
+                  color: "#bbb", fontFamily: "'Lato', sans-serif", textAlign: "center",
+                }}>
+                  All Personas
+                </p>
+                <div style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(5, 1fr)",
+                  gap: "0.5rem",
+                }}>
+                  {ALL_PERSONAS.map(p => (
+                    <div key={p.name} style={{
+                      display: "flex", flexDirection: "column", alignItems: "center",
+                      gap: "0.3rem", padding: "0.5rem 0.2rem 0.55rem",
+                      borderRadius: "10px",
+                      background: `${p.accent}08`,
+                      border: `1px solid ${p.accent}20`,
+                      overflow: "hidden",
+                    }}>
+                      <div style={{
+                        width: 44, height: 44,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        flexShrink: 0, overflow: "hidden",
+                      }}>
+                        <div style={{ transform: "scale(0.49)", transformOrigin: "center center" }}>
+                          <PersonaShape personaType={p.name} accent={p.accent}/>
+                        </div>
+                      </div>
+                      <p style={{
+                        margin: 0, fontSize: "0.6rem", fontWeight: 800,
+                        color: p.accent, fontFamily: "'Lato', sans-serif",
+                        textAlign: "center", lineHeight: 1.2,
+                      }}>
+                        {p.name}
+                      </p>
+                      <p style={{
+                        margin: 0, fontSize: "0.56rem", color: "#777",
+                        fontStyle: "italic", fontFamily: "'Lato', sans-serif",
+                        textAlign: "center", lineHeight: 1.35,
+                      }}>
+                        {p.description}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             <h3 style={{
               margin: "0 0 4px", fontSize: "1.3rem", fontWeight: 800,
               color: "#1a1a2e", fontFamily: "'Lato', sans-serif", lineHeight: 1.15,

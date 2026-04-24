@@ -1,3 +1,4 @@
+import { useState } from "react";
 import "./style/SimilarUsers.css";
 
 type SharedArtist = {
@@ -22,9 +23,16 @@ const PERSONA_ACCENTS: Record<string, string> = {
   "The Guardian":  "#6366f1",
   "The Zealous":   "#f97316",
   "The Wistful":   "#fb923c",
-  "The Socialite": "#ec4899",
   "The Formalist": "#14b8a6",
 };
+
+const PERSONA_INFO = [
+  { name: "The Seeker",    accent: "#3B82F6", tags: ["eclectic", "adventurous", "genre-fluid"], description: "Roams across genres, always chasing something new." },
+  { name: "The Guardian",  accent: "#6366f1", tags: ["refined", "consistent", "deep-cuts"],     description: "Protects what matters — taste is identity." },
+  { name: "The Zealous",   accent: "#f97316", tags: ["high-energy", "bass-heavy", "intense"],   description: "High tempo, high intensity — music as fuel." },
+  { name: "The Wistful",   accent: "#fb923c", tags: ["mellow", "sentimental", "slow-burn"],     description: "Finds comfort in sounds that carry memory." },
+  { name: "The Formalist", accent: "#14b8a6", tags: ["genre-loyal", "deep-listener", "niche"],  description: "One genre. Total mastery. No compromises." },
+];
 
 function ArtistBubbles({ artists, accent }: { artists: SharedArtist[]; accent: string }) {
   const visible  = artists.slice(0, 5);
@@ -94,6 +102,15 @@ function ArtistBubbles({ artists, accent }: { artists: SharedArtist[]; accent: s
 
 export default function MatchCard({ match }: { match: Match }) {
   const accent = PERSONA_ACCENTS[match.persona_type] ?? "#a37cd9";
+  const [copied, setCopied] = useState(false);
+  const [showPersonaInfo, setShowPersonaInfo] = useState(false);
+
+  function copyName() {
+    navigator.clipboard.writeText(match.display_name).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
 
   return (
     <div className="match-card" style={{ border: `1px solid ${accent}20` }}>
@@ -101,8 +118,16 @@ export default function MatchCard({ match }: { match: Match }) {
       {/* Top row */}
       <div className="match-top">
         <div>
-          <p className="match-label">Spotify User</p>
-          <h3 className="match-name">{match.display_name}</h3>
+          <div className="match-name-row">
+            <h3 className="match-name">{match.display_name}</h3>
+            <button className="copy-btn" onClick={copyName} title="Copy username to find on Spotify">
+              {copied ? "✓" : "⎘"}
+            </button>
+            <div className="info-tip">
+              <span className="info-icon">i</span>
+              <span className="info-tooltip">Search this name in Spotify to find this user</span>
+            </div>
+          </div>
         </div>
         <div
           className="match-badge"

@@ -10,11 +10,10 @@ type SimilarUsersData = {
 };
 
 const PERSONA_ACCENTS: Record<string, string> = {
-  "The Seeker": "#3B82F6",
-  "The Guardian": "#6366f1",
-  "The Zealous": "#f97316",
-  "The Wistful": "#fb923c",
-  "The Socialite": "#ec4899",
+  "The Seeker":    "#3B82F6",
+  "The Guardian":  "#6366f1",
+  "The Zealous":   "#f97316",
+  "The Wistful":   "#fb923c",
   "The Formalist": "#14b8a6",
 };
 
@@ -67,13 +66,10 @@ export default function SimilarUsers({ userId }: { userId: string }) {
           border: `1.5px solid ${accent}25`,
         }}
       >
-        <p style={{ color: accent }}>Your matches</p>
-        <h2>
-          {data.matches.length} {data.my_persona} listener
-          {data.matches.length !== 1 ? "s" : ""}
-        </h2>
-        <p style={{ color: "#777", fontStyle: "italic" }}>
-          Users who share your listening persona, ranked by similarity.
+        <p style={{ color: accent, fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", margin: 0 }}>YOUR MATCHES</p>
+        <h2>Similar Users</h2>
+        <p style={{ color: "#777", margin: 0 }}>
+          {data.matches.length} {data.my_persona} listener{data.matches.length !== 1 ? "s" : ""} — ranked by similarity
         </p>
       </div>
 

@@ -149,7 +149,7 @@ export default function ConcertRecommendations({
                   </a>
                 )}
                 <button
-                  className="chat-btn"
+                  className="chat-btn primary"
                   onClick={() => onJoinChat(concert.ticketmaster_id)}
                 >
                   Join Chat 💬
@@ -177,7 +177,7 @@ export default function ConcertRecommendations({
               <p className="chat-empty">No messages yet. Start the conversation!</p>
             )}
             {messages.map((msg, i) => {
-              const isMe = msg.username === username;
+              const isMe = String(msg.user_id) === String(userId);
               return (
                 <div key={i} className={`message ${isMe ? "me" : "other"}`}>
                   <strong>{msg.username}</strong>
